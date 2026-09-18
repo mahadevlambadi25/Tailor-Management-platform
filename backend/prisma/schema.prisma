@@ -16,6 +16,7 @@ model Tenant {
   address               String?
   currency              String                 @default("INR")
   isActive              Boolean                @default(true)
+  isDemo                Boolean                @default(false)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   city                  String?
@@ -33,6 +34,7 @@ model Tenant {
   customers             Customer[]
   featureFlags          FeatureFlag[]
   garmentTypes          GarmentType[]
+  inventoryItems        InventoryItem[]
   invoices              Invoice[]
   measurementTemplates  MeasurementTemplate[]
   notificationTemplates NotificationTemplate[]
@@ -47,6 +49,7 @@ model Tenant {
   trials                Trial[]
   users                 User[]
 
+  @@index([isDemo])
   @@map("tenants")
 }
 
@@ -814,4 +817,27 @@ enum TrialStatus {
 enum UnitSystem {
   INCHES
   CENTIMETERS
+}
+
+model InventoryItem {
+  id           String   @id @default(uuid())
+  tenantId     String
+  itemCode     String
+  name         String
+  category     String
+  quantity     Decimal  @default(0.0) @db.Decimal(10, 2)
+  unit         String   @default("METERS")
+  unitPrice    Decimal  @default(0.0) @db.Decimal(10, 2)
+  reorderLevel Decimal  @default(10.0) @db.Decimal(10, 2)
+  supplier     String?
+  notes        String?
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, itemCode])
+  @@index([tenantId, isDemo])
+  @@index([tenantId, category])
+  @@map("inventory_items")
 }
