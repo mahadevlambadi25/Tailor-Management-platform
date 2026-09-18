@@ -20,12 +20,16 @@ export const api = axios.create({
 
 api.interceptors.request.use((req) => {
   const token = localStorage.getItem('tailor_token');
-  const tenantSlug = localStorage.getItem('tailor_tenant_slug') || 'royal-bespoke';
+  const storedSlug = localStorage.getItem('tailor_tenant_slug') || 'royal-bespoke';
 
   if (token) {
     req.headers.Authorization = `Bearer ${token}`;
   }
-  req.headers['x-tenant-slug'] = tenantSlug;
+
+  // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage
+  if (!req.headers['x-tenant-slug']) {
+    req.headers['x-tenant-slug'] = storedSlug;
+  }
 
   return req;
 });

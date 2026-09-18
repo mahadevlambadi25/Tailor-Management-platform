@@ -21,11 +21,12 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      localStorage.setItem('tailor_tenant_slug', tenantSlug);
+      const activeSlug = tenantSlug?.trim() || 'royal-bespoke';
+      localStorage.setItem('tailor_tenant_slug', activeSlug);
       const res = await api.post(
         '/auth/login',
-        { email, password, tenantSlug },
-        { headers: { 'x-tenant-slug': tenantSlug } }
+        { email: email.trim(), password, tenantSlug: activeSlug },
+        { headers: { 'x-tenant-slug': activeSlug } }
       );
       if (res.data.success) {
         login(res.data.data.token, res.data.data.user, res.data.data.permissions);
