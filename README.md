@@ -113,6 +113,67 @@ npm run dev
 
 ---
 
+## 🚀 Render Cloud Deployment (PostgreSQL + Backend + Frontend)
+
+The application is fully pre-configured for seamless deployment on [Render](https://render.com).
+
+### Option 1: 1-Click Deployment with Render Blueprint (`render.yaml`)
+1. Push your repository to GitHub.
+2. In the [Render Dashboard](https://dashboard.render.com), click **New +** > **Blueprint**.
+3. Connect your repository. Render automatically reads [render.yaml](file:///c:/Users/Reshma/Desktop/Tailor%20system%20application/render.yaml) and provisions:
+   - **PostgreSQL Database** (`tailor-management-db`)
+   - **Backend Web Service** (`tailor-management-backend`) with `DATABASE_URL` linked automatically from the database
+   - **Frontend Static Site** (`tailor-management-frontend`)
+4. Click **Apply**. All services and migrations deploy automatically.
+
+---
+
+### Option 2: Step-by-Step Manual Setup
+
+#### Step 1: Create Render PostgreSQL Database
+1. Go to [Render Dashboard](https://dashboard.render.com) and click **New +** > **PostgreSQL**.
+2. Configure database details:
+   - **Name**: `tailor-management-db`
+   - **Database**: `tailor_db`
+   - **User**: `tailor_admin`
+   - **Region**: Choose the region closest to your users (e.g. *Frankfurt* or *Oregon*).
+   - **Plan**: Select **Free** (or *Starter*).
+3. Click **Create Database**.
+4. Once provisioned, scroll to **Connections**:
+   - Copy the **Internal Database URL** (`postgres://tailor_admin:...@dpg-xxxxxx-a:5432/tailor_db`).
+     *(Note: Always use the Internal URL for services hosted on Render for faster response and zero egress bandwidth fees).*
+   - *(Optional)* Copy the **External Database URL** if connecting from your local PC or a database management tool like DBeaver or TablePlus.
+
+#### Step 2: Create Backend Web Service on Render
+1. In the Render Dashboard, click **New +** > **Web Service**.
+2. Connect your GitHub repository.
+3. Configure the service settings:
+   - **Name**: `tailor-management-backend`
+   - **Root Directory**: `backend`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npx prisma migrate deploy && npm start`
+4. In the **Environment** tab, add the environment variables:
+   - `NODE_ENV` = `production`
+   - `PORT` = `10000`
+   - `DATABASE_URL` = *(Paste the **Internal Database URL** from Step 1)*
+   - `JWT_SECRET` = *(Generate a secure 32+ character random secret)*
+   - `JWT_REFRESH_SECRET` = *(Generate a secure 32+ character random secret)*
+   - `CORS_ORIGIN` = `https://tailor-management-frontend.onrender.com`
+   - `DEFAULT_TENANT_SLUG` = `royal-bespoke`
+5. Click **Deploy Web Service**.
+
+#### Step 3: Run Database Migrations & Seed Demo Data
+- **Automatic Migration**: The `startCommand` (`npx prisma migrate deploy && npm start`) automatically applies all pending migrations and builds all 30+ tables, enums, foreign keys, and indexes on startup before accepting incoming traffic.
+- **Seed Initial Data**:
+  1. Once deployed, open the **Shell** tab in the `tailor-management-backend` service on Render.
+  2. Run the seed command:
+     ```bash
+     npm run seed
+     ```
+  3. This creates the baseline multi-tenant records, 10 staff roles, demo customers, and workflow orders.
+
+
 ## ?? Pre-Seeded Test Credentials
 
 ### Tenant 1: Royal Bespoke Atelier (`royal-bespoke`)

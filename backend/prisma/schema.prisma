@@ -1,0 +1,817 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                    String                 @id @default(uuid())
+  name                  String
+  slug                  String                 @unique
+  phone                 String
+  email                 String?
+  address               String?
+  currency              String                 @default("INR")
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  city                  String?
+  defaultUnit           UnitSystem             @default(INCHES)
+  gstNumber             String?
+  pincode               String?
+  state                 String?
+  alterations           Alteration[]
+  appointments          Appointment[]
+  auditLogs             AuditLog[]
+  branches              Branch[]
+  customerMeasurements  CustomerMeasurement[]
+  customerOtps          CustomerOtp[]
+  customerStyles        CustomerStyle[]
+  customers             Customer[]
+  featureFlags          FeatureFlag[]
+  garmentTypes          GarmentType[]
+  invoices              Invoice[]
+  measurementTemplates  MeasurementTemplate[]
+  notificationTemplates NotificationTemplate[]
+  notifications         Notification[]
+  orderItems            OrderItem[]
+  orders                Order[]
+  payments              Payment[]
+  productionJobs        ProductionJob[]
+  receipts              Receipt[]
+  styles                Style[]
+  subscription          Subscription?
+  trials                Trial[]
+  users                 User[]
+
+  @@map("tenants")
+}
+
+model Subscription {
+  id                String    @id @default(uuid())
+  tenantId          String    @unique
+  planName          String    @default("PRO_TIER")
+  status            String    @default("ACTIVE")
+  maxOrdersPerMonth Int       @default(1000)
+  maxStaff          Int       @default(50)
+  maxBranches       Int       @default(5)
+  startDate         DateTime  @default(now())
+  endDate           DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model FeatureFlag {
+  id         String   @id @default(uuid())
+  tenantId   String
+  featureKey String
+  isEnabled  Boolean  @default(false)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, featureKey])
+  @@index([tenantId])
+  @@map("feature_flags")
+}
+
+model Branch {
+  id           String        @id @default(uuid())
+  tenantId     String
+  name         String
+  code         String?
+  phone        String?
+  address      String?
+  isMain       Boolean       @default(false)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders       Order[]
+  users        User[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("branches")
+}
+
+model User {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  name                String
+  email               String
+  phone               String?
+  passwordHash        String
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  branchId            String?
+  lastLoginAt         DateTime?
+  skills              String[]        @default([])
+  staffCode           String?
+  role                RoleType        @default(TAILOR)
+  assignedAlterations Alteration[]    @relation("AssignedAlterationStaff")
+  appointments        Appointment[]
+  auditLogs           AuditLog[]
+  assignedJobs        ProductionJob[] @relation("AssignedStaff")
+  branch              Branch?         @relation(fields: [branchId], references: [id])
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([branchId])
+  @@map("users")
+}
+
+model Customer {
+  id             String                @id @default(uuid())
+  customerId     String
+  tenantId       String
+  firstName      String
+  lastName       String
+  mobile         String
+  email          String?
+  address        String?
+  notes          String?
+  isDeleted      Boolean               @default(false)
+  deletedAt      DateTime?
+  isDemo         Boolean               @default(false)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  city           String?
+  deletedBy      String?
+  deletionReason String?
+  dob            DateTime?
+  gender         String?
+  pincode        String?
+  state          String?
+  alterations    Alteration[]
+  appointments   Appointment[]
+  auditLogs      AuditLog[]
+  documents      CustomerDocument[]
+  measurements   CustomerMeasurement[]
+  photos         CustomerPhoto[]
+  preferences    CustomerPreference?
+  customerStyles CustomerStyle[]
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notifications  Notification[]
+  orders         Order[]
+  payments       Payment[]
+  trials         Trial[]
+
+  @@unique([tenantId, customerId])
+  @@index([tenantId, isDeleted])
+  @@index([tenantId, isDemo])
+  @@index([tenantId, mobile])
+  @@index([tenantId, firstName, lastName])
+  @@map("customers")
+}
+
+model CustomerPreference {
+  id                     String   @id @default(uuid())
+  tenantId               String
+  customerId             String   @unique
+  preferredContactMethod String?  @default("PHONE")
+  fabricPreferences      String?
+  fitPreference          String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  customer               Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("customer_preferences")
+}
+
+model CustomerPhoto {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  storageKey String
+  fileUrl    String
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  caption    String?
+  createdAt  DateTime @default(now())
+  photoType  String   @default("PROFILE")
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+  @@map("customer_photos")
+}
+
+model CustomerDocument {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  docType    String   @default("OTHER")
+  storageKey String
+  fileUrl    String
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+  @@map("customer_documents")
+}
+
+model GarmentType {
+  id                   String                @id @default(uuid())
+  tenantId             String
+  code                 String
+  name                 String
+  category             String
+  defaultPrice         Decimal               @default(0.0) @db.Decimal(10, 2)
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  customerMeasurements CustomerMeasurement[]
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templates            MeasurementTemplate[]
+  orderItems           OrderItem[]
+  styles               Style[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("garment_types")
+}
+
+model MeasurementTemplate {
+  id            String                       @id @default(uuid())
+  tenantId      String
+  garmentTypeId String
+  name          String
+  unit          UnitSystem                   @default(INCHES)
+  isActive      Boolean                      @default(true)
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  versions      MeasurementTemplateVersion[]
+  garmentType   GarmentType                  @relation(fields: [garmentTypeId], references: [id], onDelete: Cascade)
+  tenant        Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, garmentTypeId])
+  @@map("measurement_templates")
+}
+
+model MeasurementTemplateVersion {
+  id            String              @id @default(uuid())
+  templateId    String
+  versionNumber Int                 @default(1)
+  fields        Json
+  createdAt     DateTime            @default(now())
+  template      MeasurementTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, versionNumber])
+  @@map("measurement_template_versions")
+}
+
+model CustomerMeasurement {
+  id            String               @id @default(uuid())
+  tenantId      String
+  customerId    String
+  garmentTypeId String
+  name          String
+  unit          UnitSystem           @default(INCHES)
+  isActive      Boolean              @default(true)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  garmentType   GarmentType          @relation(fields: [garmentTypeId], references: [id], onDelete: Cascade)
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions      MeasurementVersion[]
+
+  @@index([tenantId, customerId])
+  @@map("customer_measurements")
+}
+
+model MeasurementVersion {
+  id                    String              @id @default(uuid())
+  customerMeasurementId String
+  versionNumber         Int                 @default(1)
+  values                Json
+  createdById           String?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  measurement           CustomerMeasurement @relation(fields: [customerMeasurementId], references: [id], onDelete: Cascade)
+
+  @@unique([customerMeasurementId, versionNumber])
+  @@map("measurement_versions")
+}
+
+model Style {
+  id              String           @id @default(uuid())
+  tenantId        String
+  garmentTypeId   String
+  name            String
+  category        String
+  description     String?
+  imageUrl        String?
+  options         Json?
+  notes           String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  customerStyles  CustomerStyle[]
+  orderItemStyles OrderItemStyle[]
+  garmentType     GarmentType      @relation(fields: [garmentTypeId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, garmentTypeId])
+  @@map("styles")
+}
+
+model CustomerStyle {
+  id          String   @id @default(uuid())
+  tenantId    String
+  customerId  String
+  styleId     String
+  isFavourite Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  style       Style    @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, styleId])
+  @@index([tenantId, customerId])
+  @@map("customer_styles")
+}
+
+model Order {
+  id                  String        @id @default(uuid())
+  orderNumber         String
+  tenantId            String
+  branchId            String?
+  customerId          String
+  status              OrderStatus   @default(RECEIVED)
+  priority            String        @default("REGULAR")
+  deliveryDate        DateTime
+  revisedDeliveryDate DateTime?
+  delayReason         String?
+  totalAmount         Decimal       @db.Decimal(10, 2)
+  discountType        DiscountType  @default(FIXED)
+  discountValue       Decimal       @default(0.0) @db.Decimal(10, 2)
+  discountAmount      Decimal       @default(0.0) @db.Decimal(10, 2)
+  netAmount           Decimal       @db.Decimal(10, 2)
+  gstRate             Decimal       @default(0.0) @db.Decimal(5, 2)
+  gstAmount           Decimal       @default(0.0) @db.Decimal(10, 2)
+  isGstInclusive      Boolean       @default(false)
+  paidAmount          Decimal       @default(0.0) @db.Decimal(10, 2)
+  balanceAmount       Decimal       @db.Decimal(10, 2)
+  paymentStatus       PaymentStatus @default(UNPAID)
+  internalNotes       String?
+  customerNotes       String?
+  isCancelled         Boolean       @default(false)
+  cancellationReason  String?
+  isDemo              Boolean       @default(false)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  invoices            Invoice[]
+  items               OrderItem[]
+  branch              Branch?       @relation(fields: [branchId], references: [id])
+  customer            Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments            Payment[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, isDemo])
+  @@index([tenantId, deliveryDate])
+  @@index([tenantId, customerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String                @id @default(uuid())
+  tenantId            String
+  orderId             String
+  garmentTypeId       String
+  itemPrice           Decimal               @db.Decimal(10, 2)
+  stitchingCharge     Decimal               @default(0.0) @db.Decimal(10, 2)
+  fabricCharge        Decimal               @default(0.0) @db.Decimal(10, 2)
+  designCharge        Decimal               @default(0.0) @db.Decimal(10, 2)
+  alterationCharge    Decimal               @default(0.0) @db.Decimal(10, 2)
+  urgentCharge        Decimal               @default(0.0) @db.Decimal(10, 2)
+  otherCharge         Decimal               @default(0.0) @db.Decimal(10, 2)
+  quantity            Int                   @default(1)
+  totalItemPrice      Decimal               @db.Decimal(10, 2)
+  status              ProductionStageName   @default(RECEIVED)
+  internalNotes       String?
+  customerNotes       String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  alterations         Alteration[]
+  measurementSnapshot OrderItemMeasurement?
+  photos              OrderItemPhoto[]
+  styles              OrderItemStyle[]
+  garmentType         GarmentType           @relation(fields: [garmentTypeId], references: [id])
+  order               Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productionJob       ProductionJob?
+  trials              Trial[]
+
+  @@index([tenantId, orderId])
+  @@map("order_items")
+}
+
+model OrderItemMeasurement {
+  id                   String     @id @default(uuid())
+  tenantId             String
+  orderItemId          String     @unique
+  measurementVersionId String?
+  templateVersionId    String?
+  valuesSnapshot       Json
+  unit                 UnitSystem @default(INCHES)
+  notes                String?
+  createdAt            DateTime   @default(now())
+  orderItem            OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@map("order_item_measurements")
+}
+
+model OrderItemStyle {
+  id              String    @id @default(uuid())
+  tenantId        String
+  orderItemId     String
+  styleId         String
+  selectedOptions Json?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  style           Style     @relation(fields: [styleId], references: [id])
+
+  @@index([tenantId, orderItemId])
+  @@map("order_item_styles")
+}
+
+model OrderItemPhoto {
+  id          String    @id @default(uuid())
+  tenantId    String
+  orderItemId String
+  photoType   String    @default("REFERENCE")
+  fileUrl     String
+  caption     String?
+  createdAt   DateTime  @default(now())
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@map("order_item_photos")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  tenantId        String
+  orderId         String
+  customerId      String
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod @default(CASH)
+  referenceNumber String?
+  recordedById    String?
+  notes           String?
+  isRefund        Boolean       @default(false)
+  isCorrection    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receipts        Receipt[]
+
+  @@index([tenantId, orderId])
+  @@index([tenantId, customerId])
+  @@map("payments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  tenantId      String
+  orderId       String
+  invoiceNumber String
+  subtotal      Decimal  @db.Decimal(10, 2)
+  discount      Decimal  @db.Decimal(10, 2)
+  gstRate       Decimal  @db.Decimal(5, 2)
+  gstAmount     Decimal  @db.Decimal(10, 2)
+  totalAmount   Decimal  @db.Decimal(10, 2)
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, invoiceNumber])
+  @@map("invoices")
+}
+
+model Receipt {
+  id            String   @id @default(uuid())
+  tenantId      String
+  paymentId     String
+  receiptNumber String
+  amount        Decimal  @db.Decimal(10, 2)
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, receiptNumber])
+  @@map("receipts")
+}
+
+model ProductionJob {
+  id                  String                   @id @default(uuid())
+  tenantId            String
+  orderItemId         String                   @unique
+  currentStage        ProductionStageName      @default(RECEIVED)
+  assignedToId        String?
+  assignedDate        DateTime?
+  startedDate         DateTime?
+  completedDate       DateTime?
+  isDelayed           Boolean                  @default(false)
+  delayReason         String?
+  revisedDeliveryDate DateTime?
+  notes               String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  assignedTo          User?                    @relation("AssignedStaff", fields: [assignedToId], references: [id])
+  orderItem           OrderItem                @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  history             ProductionStageHistory[]
+
+  @@index([tenantId, currentStage])
+  @@index([tenantId, assignedToId])
+  @@map("production_jobs")
+}
+
+model ProductionStageHistory {
+  id               String               @id @default(uuid())
+  productionJobId  String
+  tenantId         String
+  fromStage        ProductionStageName?
+  toStage          ProductionStageName
+  transitionedById String?
+  delayReason      String?
+  notes            String?
+  createdAt        DateTime             @default(now())
+  productionJob    ProductionJob        @relation(fields: [productionJobId], references: [id], onDelete: Cascade)
+
+  @@index([productionJobId])
+  @@map("production_stage_history")
+}
+
+model Trial {
+  id                     String       @id @default(uuid())
+  tenantId               String
+  orderItemId            String
+  customerId             String
+  trialNumber            Int          @default(1)
+  scheduledDate          DateTime
+  completedDate          DateTime?
+  status                 TrialStatus  @default(SCHEDULED)
+  fitNotes               String?
+  issues                 String?
+  alterationInstructions String?
+  photos                 Json?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  alterations            Alteration[]
+  customer               Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderItem              OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  tenant                 Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderItemId])
+  @@index([tenantId, customerId])
+  @@map("trials")
+}
+
+model Alteration {
+  id           String    @id @default(uuid())
+  tenantId     String
+  trialId      String?
+  orderItemId  String
+  customerId   String
+  assignedToId String?
+  isChargeable Boolean   @default(false)
+  chargeAmount Decimal   @default(0.0) @db.Decimal(10, 2)
+  instructions String
+  status       String    @default("PENDING")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  assignedTo   User?     @relation("AssignedAlterationStaff", fields: [assignedToId], references: [id])
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  trial        Trial?    @relation(fields: [trialId], references: [id])
+
+  @@index([tenantId, orderItemId])
+  @@map("alterations")
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  tenantId        String
+  branchId        String?
+  customerId      String
+  staffId         String?
+  type            AppointmentType   @default(MEASUREMENT)
+  scheduledAt     DateTime
+  durationMinutes Int               @default(30)
+  bufferMinutes   Int               @default(10)
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?
+  isDemo          Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  branch          Branch?           @relation(fields: [branchId], references: [id])
+  customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staff           User?             @relation(fields: [staffId], references: [id])
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, customerId])
+  @@index([tenantId, isDemo])
+  @@map("appointments")
+}
+
+model Notification {
+  id         String              @id @default(uuid())
+  tenantId   String
+  customerId String?
+  eventType  String
+  channel    NotificationChannel @default(IN_APP)
+  recipient  String
+  title      String
+  message    String
+  status     NotificationStatus  @default(SENT)
+  sentAt     DateTime            @default(now())
+  createdAt  DateTime            @default(now())
+  customer   Customer?           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id           String              @id @default(uuid())
+  tenantId     String
+  eventType    String
+  channel      NotificationChannel @default(WHATSAPP)
+  templateBody String
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, eventType, channel])
+  @@map("notification_templates")
+}
+
+model CustomerOtp {
+  id        String   @id @default(uuid())
+  tenantId  String
+  mobile    String
+  otpHash   String
+  attempts  Int      @default(0)
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, mobile, isUsed])
+  @@map("customer_otps")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid())
+  tenantId   String
+  userId     String?
+  customerId String?
+  action     String
+  entity     String
+  entityId   String
+  details    Json?
+  createdAt  DateTime  @default(now())
+  ipAddress  String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+enum RoleType {
+  SAAS_OWNER
+  SAAS_SUPPORT
+  SHOP_OWNER
+  MANAGER
+  RECEPTIONIST
+  TAILOR
+  CUTTER
+  FINISHER
+  CASHIER
+  CUSTOMER
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  EXPORT
+  APPROVE
+}
+
+enum ProductionStageName {
+  RECEIVED
+  CUTTING
+  STITCHING
+  FINISHING
+  TRIAL
+  ALTERATION
+  READY
+  DELIVERED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERPAID
+  REFUNDED
+}
+
+enum OrderStatus {
+  RECEIVED
+  IN_PROGRESS
+  TRIAL_PENDING
+  ALTERATION_PENDING
+  READY_FOR_PICKUP
+  DELIVERED
+  CANCELLED
+}
+
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+enum AppointmentType {
+  MEASUREMENT
+  FITTING
+  TRIAL
+  PICKUP
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum TrialStatus {
+  SCHEDULED
+  COMPLETED
+  ALTERATION_NEEDED
+  APPROVED
+}
+
+enum UnitSystem {
+  INCHES
+  CENTIMETERS
+}
