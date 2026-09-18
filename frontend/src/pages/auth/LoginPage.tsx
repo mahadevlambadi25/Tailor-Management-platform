@@ -21,7 +21,12 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, password });
+      localStorage.setItem('tailor_tenant_slug', tenantSlug);
+      const res = await api.post(
+        '/auth/login',
+        { email, password, tenantSlug },
+        { headers: { 'x-tenant-slug': tenantSlug } }
+      );
       if (res.data.success) {
         login(res.data.data.token, res.data.data.user, res.data.data.permissions);
         navigate('/dashboard');
@@ -124,7 +129,7 @@ export const LoginPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 text-left">
               <button
                 type="button"
-                onClick={() => quickFill('owner@royalbespoke.com')}
+                onClick={() => quickFill('owner@royalbespoke.com', 'royal-bespoke')}
                 className="p-2 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-[11px] text-slate-700 transition-all"
               >
                 <div className="font-bold text-slate-900">Shop Owner</div>
@@ -132,7 +137,18 @@ export const LoginPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => quickFill('receptionist@royalbespoke.com')}
+                onClick={() => quickFill('owner@demo-tailors.com', 'demo-tailors')}
+                className="p-2 rounded-lg border border-emerald-300 bg-emerald-50/40 hover:border-emerald-500 hover:bg-emerald-50 text-[11px] text-slate-700 transition-all"
+              >
+                <div className="font-bold text-emerald-900 flex items-center gap-1">
+                  <span>Demo Atelier</span>
+                  <span className="text-[9px] bg-emerald-200 text-emerald-800 px-1 rounded-sm font-extrabold">NEW</span>
+                </div>
+                <div className="text-[10px] text-emerald-700">owner@demo-tailors.com</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => quickFill('receptionist@royalbespoke.com', 'royal-bespoke')}
                 className="p-2 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-[11px] text-slate-700 transition-all"
               >
                 <div className="font-bold text-slate-900">Receptionist</div>
@@ -140,19 +156,11 @@ export const LoginPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => quickFill('tailor@royalbespoke.com')}
+                onClick={() => quickFill('tailor@royalbespoke.com', 'royal-bespoke')}
                 className="p-2 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-[11px] text-slate-700 transition-all"
               >
                 <div className="font-bold text-slate-900">Master Tailor</div>
                 <div className="text-[10px] text-slate-500">tailor@royalbespoke.com</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => quickFill('owner@elitestitching.com', 'elite-stitching')}
-                className="p-2 rounded-lg border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 text-[11px] text-slate-700 transition-all"
-              >
-                <div className="font-bold text-slate-900">Tenant 2 (Elite)</div>
-                <div className="text-[10px] text-slate-500">owner@elitestitching.com</div>
               </button>
             </div>
           </div>

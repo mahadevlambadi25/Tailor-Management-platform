@@ -24,10 +24,11 @@ declare global {
 
 export async function tenantContext(req: Request, res: Response, next: NextFunction) {
   try {
-    // Determine tenant slug from header, query, or fallback default
+    // Determine tenant slug from header, body, query, or fallback default
     const slugHeader = req.headers['x-tenant-slug'] as string;
     const slugQuery = req.query.tenant as string;
-    const slug = slugHeader || slugQuery || config.defaultTenantSlug;
+    const slugBody = req.body?.tenantSlug as string;
+    const slug = slugHeader || slugBody || slugQuery || config.defaultTenantSlug;
 
     const tenant = await prisma.tenant.findUnique({
       where: { slug }
