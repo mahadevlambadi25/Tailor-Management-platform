@@ -12,11 +12,11 @@ async function bootstrap() {
     await prisma.$connect();
     logger.info('Database connected successfully.');
 
-    const PORT = process.env.PORT || 5000;
-    const HOST = '0.0.0.0';
+    const port = process.env.PORT || 5000;
 
-    const server = app.listen(Number(PORT), HOST, () => {
-      logger.info(`Tailor Management System Backend running on ${HOST}:${PORT} [NODE_ENV=${config.nodeEnv}]`);
+    const server = app.listen(Number(port), '0.0.0.0', () => {
+      console.log(`Server listening on port ${port}`);
+      logger.info(`Tailor Management System Backend running on 0.0.0.0:${port} [NODE_ENV=${config.nodeEnv}]`);
       logger.info(`Health check available at /health and /api/v1/health`);
     });
 
