@@ -10,8 +10,32 @@ import { RoleType } from '@prisma/client';
 const router = Router();
 router.use(tenantContext, authGuard, subscriptionGuard);
 
-router.get('/', OrdersController.list);
-router.get('/:id', OrdersController.getById);
+router.get(
+  '/',
+  requireRoles(
+    RoleType.SHOP_OWNER,
+    RoleType.MANAGER,
+    RoleType.RECEPTIONIST,
+    RoleType.TAILOR,
+    RoleType.CUTTER,
+    RoleType.CASHIER,
+    RoleType.FINISHER
+  ),
+  OrdersController.list
+);
+router.get(
+  '/:id',
+  requireRoles(
+    RoleType.SHOP_OWNER,
+    RoleType.MANAGER,
+    RoleType.RECEPTIONIST,
+    RoleType.TAILOR,
+    RoleType.CUTTER,
+    RoleType.CASHIER,
+    RoleType.FINISHER
+  ),
+  OrdersController.getById
+);
 router.post('/', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER, RoleType.RECEPTIONIST), OrdersController.create);
 router.patch('/:id/status', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER, RoleType.RECEPTIONIST, RoleType.TAILOR), OrdersController.updateStatus);
 router.put('/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER, RoleType.RECEPTIONIST), OrdersController.update);

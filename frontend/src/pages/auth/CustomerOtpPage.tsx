@@ -60,7 +60,7 @@ export const CustomerOtpPage: React.FC = () => {
           tenant: c.tenant
         };
         login(res.data.data.token, customerUser, ['portal:view']);
-        navigate('/customer-portal');
+        navigate('/portal');
       }
     } catch (err: any) {
       if (err.response?.data?.error?.message) {

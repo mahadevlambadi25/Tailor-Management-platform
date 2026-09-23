@@ -9,7 +9,7 @@ import { RoleType } from '@prisma/client';
 const router = Router();
 router.use(tenantContext, authGuard);
 
-router.get('/', UsersController.list);
+router.get('/', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER, RoleType.RECEPTIONIST), UsersController.list);
 router.post('/', subscriptionGuard, requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), UsersController.create);
 
 export default router;

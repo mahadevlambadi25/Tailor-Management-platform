@@ -26,7 +26,12 @@ import { PaymentsPage } from './pages/payments/PaymentsPage';
 import { StaffPage } from './pages/staff/StaffPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { PrintableShellPage } from './pages/documents/PrintableShellPage';
-import CustomerPortalPage from './pages/customer-portal/CustomerPortalPage';
+import { CustomerPortalLayout } from './pages/customer-portal/CustomerPortalLayout';
+import { CustomerDashboardPage } from './pages/customer-portal/CustomerDashboardPage';
+import { CustomerOrdersListPage } from './pages/customer-portal/CustomerOrdersListPage';
+import { CustomerOrderDetailPage } from './pages/customer-portal/CustomerOrderDetailPage';
+import { CustomerMeasurementsPage } from './pages/customer-portal/CustomerMeasurementsPage';
+import { CustomerProfilePage as CustomerPortalProfilePage } from './pages/customer-portal/CustomerProfilePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
 
@@ -44,9 +49,15 @@ export function App() {
 
                 {/* Customer Facing Portal */}
                 <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'SHOP_OWNER', 'MANAGER', 'RECEPTIONIST']} />}>
-                  <Route path="/portal" element={<CustomerPortalPage />} />
-                  <Route path="/customer-portal" element={<CustomerPortalPage />} />
-                  <Route path="/customer-portal/demo" element={<CustomerPortalPage />} />
+                  <Route element={<CustomerPortalLayout />}>
+                    <Route path="/portal" element={<CustomerDashboardPage />} />
+                    <Route path="/portal/orders" element={<CustomerOrdersListPage />} />
+                    <Route path="/portal/orders/:id" element={<CustomerOrderDetailPage />} />
+                    <Route path="/portal/measurements" element={<CustomerMeasurementsPage />} />
+                    <Route path="/portal/profile" element={<CustomerPortalProfilePage />} />
+                    <Route path="/customer-portal" element={<Navigate to="/portal" replace />} />
+                    <Route path="/customer-portal/demo" element={<Navigate to="/portal" replace />} />
+                  </Route>
                 </Route>
 
                 {/* Protected Staff & Atelier Management Routes */}

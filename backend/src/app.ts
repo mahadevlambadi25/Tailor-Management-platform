@@ -89,6 +89,7 @@ app.use('/api/v1/tenants', tenantsRoutes);
 app.use('/api/v1/subscriptions', subscriptionsRoutes);
 app.use('/api/v1/branches', branchesRoutes);
 app.use('/api/v1/users', usersRoutes);
+app.use('/api/v1/staff', usersRoutes);
 app.use('/api/v1/customers', customersRoutes);
 app.use('/api/v1/garments', garmentsRoutes);
 app.use('/api/v1/measurements', measurementsRoutes);

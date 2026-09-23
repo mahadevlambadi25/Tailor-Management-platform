@@ -275,10 +275,23 @@ export class AuthController {
 
       const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
       if (!isMatch) {
+        const newAttempts = otpRecord.attempts + 1;
+        const reachedMax = newAttempts >= config.otpMaxAttempts;
         await prisma.customerOtp.update({
           where: { id: otpRecord.id },
-          data: { attempts: otpRecord.attempts + 1 }
+          data: {
+            attempts: newAttempts,
+            ...(reachedMax ? { isUsed: true } : {})
+          }
         });
+
+        if (reachedMax) {
+          return res.status(429).json({
+            success: false,
+            error: { message: 'Maximum OTP verification attempts exceeded. Please request a new OTP.', code: 'OTP_MAX_ATTEMPTS' }
+          });
+        }
+
         return res.status(400).json({
           success: false,
           error: { message: 'Incorrect OTP code', code: 'OTP_INCORRECT' }
