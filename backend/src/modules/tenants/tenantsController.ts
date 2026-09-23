@@ -6,12 +6,16 @@ import {
   getDemoStats,
   seedDemoDataForTenant
 } from '../demo/demoService';
+import { subscriptionService } from '../subscriptions/subscriptionService';
 
 export { purgeTenantDemoData };
 
 export class TenantsController {
   static async getTenant(req: Request, res: Response, next: NextFunction) {
     try {
+      // Ensure subscription status is up to date (auto-expiring trial if expired)
+      const currentSub = await subscriptionService.checkSubscriptionStatus(req.tenantId!);
+
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId },
         include: {
@@ -20,6 +24,10 @@ export class TenantsController {
           branches: { where: { isActive: true } }
         }
       });
+
+      if (tenant && currentSub) {
+        tenant.subscription = currentSub;
+      }
 
       // Count active demo records using indexed isDemo flag and isolated relationships
       const demoStats = await getDemoStats(req.tenantId!);
@@ -186,7 +194,7 @@ export class TenantsController {
     } catch (err) { next(err); }
   }
 
-  // 3. Subscription Fail: Payment gateway reports card decline or error. Status FAILED. Demo data is NOT deleted!
+  // 3. Subscription Fail: Payment gateway reports card decline or error. Status PAST_DUE. Demo data is NOT deleted!
   static async failSubscription(req: Request, res: Response, next: NextFunction) {
     try {
       const tenantId = req.tenantId!;
@@ -194,7 +202,7 @@ export class TenantsController {
 
       const subscription = await prisma.subscription.update({
         where: { tenantId },
-        data: { status: 'FAILED' }
+        data: { status: 'PAST_DUE' }
       });
 
       return res.json({
@@ -202,7 +210,7 @@ export class TenantsController {
         message: `Subscription payment failed: ${reason}. Demo data has been retained.`,
         data: {
           subscription,
-          status: 'FAILED',
+          status: 'PAST_DUE',
           failureReason: reason,
           demoDataRetained: true
         }
@@ -217,20 +225,25 @@ export class TenantsController {
       const { planName = 'PRO_ENTERPRISE_ACTIVE', paymentId = `PAY_SUCC_${Date.now()}` } = req.body;
 
       // Update Subscription status to ACTIVE
+      const periodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
       const subscription = await prisma.subscription.upsert({
         where: { tenantId },
         update: {
           planName,
           status: 'ACTIVE',
           startDate: new Date(),
-          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          endDate: periodEnd,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: periodEnd
         },
         create: {
           tenantId,
           planName,
           status: 'ACTIVE',
           startDate: new Date(),
-          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          endDate: periodEnd,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: periodEnd
         }
       });
 

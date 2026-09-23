@@ -17,7 +17,7 @@ export class CustomersController {
 
       if (search) {
         const query = (search as string).trim();
-        whereClause.OR = [
+        const orConditions: any[] = [
           { firstName: { contains: query, mode: 'insensitive' } },
           { lastName: { contains: query, mode: 'insensitive' } },
           { mobile: { contains: query } },
@@ -25,6 +25,29 @@ export class CustomersController {
           { customerId: { contains: query, mode: 'insensitive' } },
           { orders: { some: { orderNumber: { contains: query, mode: 'insensitive' } } } }
         ];
+
+        // Multi-word name search (e.g., "Rajesh Kumar" -> firstName "Rajesh", lastName "Kumar")
+        const terms = query.split(/\s+/).filter(Boolean);
+        if (terms.length > 1) {
+          orConditions.push({
+            AND: terms.map(term => ({
+              OR: [
+                { firstName: { contains: term, mode: 'insensitive' } },
+                { lastName: { contains: term, mode: 'insensitive' } },
+                { mobile: { contains: term } },
+                { email: { contains: term, mode: 'insensitive' } }
+              ]
+            }))
+          });
+        }
+
+        // Clean digits phone search (e.g. "+91 98765-43210" or "98765 43210")
+        const cleanDigits = query.replace(/\D/g, '');
+        if (cleanDigits.length >= 4) {
+          orConditions.push({ mobile: { contains: cleanDigits } });
+        }
+
+        whereClause.OR = orConditions;
       }
 
       const [total, customers] = await Promise.all([
@@ -124,7 +147,10 @@ export class CustomersController {
       });
 
       if (!customer) {
-        return res.status(404).json({ success: false, error: { message: 'Customer not found' } });
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or access denied.', code: 'CUSTOMER_NOT_FOUND' }
+        });
       }
 
       const totalSpend = customer.orders.reduce((sum, o) => sum + Number(o.netAmount), 0);
@@ -144,26 +170,98 @@ export class CustomersController {
   // Create Customer
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const { firstName, lastName, mobile, email, gender, dob, address, city, state, pincode, notes, preferences } = req.body;
+      const {
+        firstName,
+        lastName,
+        mobile,
+        whatsapp,
+        email,
+        gender,
+        dob,
+        address,
+        city,
+        state,
+        pincode,
+        notes,
+        preferences
+      } = req.body;
       const tenantId = req.tenantId!;
 
-      if (!firstName || !lastName || !mobile) {
+      // 1. Mandatory Fields Validation
+      if (!firstName || !firstName.toString().trim() || !lastName || !lastName.toString().trim() || !mobile || !mobile.toString().trim()) {
         return res.status(400).json({
           success: false,
           error: { message: 'First name, last name, and mobile number are mandatory.', code: 'MISSING_FIELDS' }
         });
       }
 
-      // Check duplicate mobile in tenant
+      // 2. Mobile validation (minimum 7 digits, maximum 15 digits)
+      const cleanMobile = mobile.toString().trim();
+      const mobileDigits = cleanMobile.replace(/\D/g, '');
+      if (mobileDigits.length < 7 || mobileDigits.length > 15) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Please enter a valid mobile number (7 to 15 digits).', code: 'INVALID_PHONE' }
+        });
+      }
+
+      // 3. Email validation if provided
+      const cleanEmail = email ? email.toString().trim().toLowerCase() : null;
+      if (cleanEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cleanEmail)) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Please provide a valid email address.', code: 'INVALID_EMAIL' }
+          });
+        }
+      }
+
+      // 4. WhatsApp handling & preferences compilation
+      const cleanWhatsApp = whatsapp ? whatsapp.toString().trim() : null;
+      if (cleanWhatsApp) {
+        const waDigits = cleanWhatsApp.replace(/\D/g, '');
+        if (waDigits.length < 7 || waDigits.length > 15) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Please enter a valid WhatsApp number (7 to 15 digits).', code: 'INVALID_WHATSAPP' }
+          });
+        }
+      }
+
+      // Check duplicate mobile in tenant (both exact trim and digit match)
       const existing = await prisma.customer.findFirst({
-        where: { tenantId, mobile, isDeleted: false }
+        where: {
+          tenantId,
+          isDeleted: false,
+          OR: [
+            { mobile: cleanMobile },
+            { mobile: mobileDigits }
+          ]
+        }
       });
+
       if (existing) {
         return res.status(409).json({
           success: false,
-          error: { message: `Customer with mobile ${mobile} already exists (${existing.firstName} ${existing.lastName}).`, code: 'DUPLICATE_MOBILE', existingCustomerId: existing.id }
+          error: {
+            message: `Customer with mobile ${cleanMobile} already exists (${existing.firstName} ${existing.lastName}).`,
+            code: 'DUPLICATE_MOBILE',
+            existingCustomerId: existing.id,
+            existingCustomerName: `${existing.firstName} ${existing.lastName}`
+          }
         });
       }
+
+      // Consolidate customer notes (append whatsapp number if distinct from mobile)
+      let combinedNotes = notes ? notes.toString().trim() : '';
+      if (cleanWhatsApp && cleanWhatsApp !== cleanMobile) {
+        const waNote = `WhatsApp: ${cleanWhatsApp}`;
+        combinedNotes = combinedNotes ? `${combinedNotes} | ${waNote}` : waNote;
+      }
+
+      // Preferred contact method: default to WHATSAPP if WhatsApp provided, otherwise PHONE or user preference
+      const preferredContactMethod = preferences?.preferredContactMethod || (cleanWhatsApp ? 'WHATSAPP' : 'PHONE');
 
       // Generate next customer ID collision-safe with concurrency retry
       let customer: any = null;
@@ -179,26 +277,26 @@ export class CustomersController {
             data: {
               customerId,
               tenantId,
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              mobile: mobile.trim(),
-              email: email ? email.toLowerCase().trim() : null,
-              gender,
+              firstName: firstName.toString().trim(),
+              lastName: lastName.toString().trim(),
+              mobile: cleanMobile,
+              email: cleanEmail,
+              gender: gender ? gender.toString().trim() : null,
               dob: dob ? new Date(dob) : null,
-              address,
-              city,
-              state,
-              pincode,
-              notes,
-              preferences: preferences ? {
+              address: address ? address.toString().trim() : null,
+              city: city ? city.toString().trim() : null,
+              state: state ? state.toString().trim() : null,
+              pincode: pincode ? pincode.toString().trim() : null,
+              notes: combinedNotes || null,
+              preferences: {
                 create: {
                   tenantId,
-                  preferredContactMethod: preferences.preferredContactMethod || 'PHONE',
-                  fabricPreferences: preferences.fabricPreferences,
-                  fitPreference: preferences.fitPreference,
-                  notes: preferences.notes
+                  preferredContactMethod,
+                  fabricPreferences: preferences?.fabricPreferences || null,
+                  fitPreference: preferences?.fitPreference || null,
+                  notes: preferences?.notes || (cleanWhatsApp ? `WhatsApp: ${cleanWhatsApp}` : null)
                 }
-              } : undefined
+              }
             },
             include: { preferences: true }
           });
@@ -234,20 +332,105 @@ export class CustomersController {
       const { firstName, lastName, mobile, email, gender, dob, address, city, state, pincode, notes } = req.body;
       const tenantId = req.tenantId!;
 
+      // 1. Verify customer exists within current tenant
+      const existing = await prisma.customer.findFirst({
+        where: { id, tenantId }
+      });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or access denied.', code: 'CUSTOMER_NOT_FOUND' }
+        });
+      }
+
+      // 2. Validate mobile if updated
+      const updateData: any = {};
+      if (firstName !== undefined) {
+        if (!firstName.toString().trim()) {
+          return res.status(400).json({ success: false, error: { message: 'First name cannot be empty.', code: 'INVALID_NAME' } });
+        }
+        updateData.firstName = firstName.toString().trim();
+      }
+
+      if (lastName !== undefined) {
+        if (!lastName.toString().trim()) {
+          return res.status(400).json({ success: false, error: { message: 'Last name cannot be empty.', code: 'INVALID_NAME' } });
+        }
+        updateData.lastName = lastName.toString().trim();
+      }
+
+      if (mobile !== undefined) {
+        const cleanMobile = mobile.toString().trim();
+        const digits = cleanMobile.replace(/\D/g, '');
+        if (digits.length < 7 || digits.length > 15) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Please enter a valid mobile number (7 to 15 digits).', code: 'INVALID_PHONE' }
+          });
+        }
+
+        if (cleanMobile !== existing.mobile) {
+          // Check for duplicate in the same tenant
+          const duplicate = await prisma.customer.findFirst({
+            where: {
+              tenantId,
+              isDeleted: false,
+              NOT: { id },
+              OR: [{ mobile: cleanMobile }, { mobile: digits }]
+            }
+          });
+          if (duplicate) {
+            return res.status(409).json({
+              success: false,
+              error: {
+                message: `Another customer with mobile ${cleanMobile} already exists (${duplicate.firstName} ${duplicate.lastName}).`,
+                code: 'DUPLICATE_MOBILE',
+                existingCustomerId: duplicate.id
+              }
+            });
+          }
+        }
+        updateData.mobile = cleanMobile;
+      }
+
+      if (email !== undefined) {
+        const cleanEmail = email ? email.toString().trim().toLowerCase() : null;
+        if (cleanEmail) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(cleanEmail)) {
+            return res.status(400).json({
+              success: false,
+              error: { message: 'Please provide a valid email address.', code: 'INVALID_EMAIL' }
+            });
+          }
+        }
+        updateData.email = cleanEmail;
+      }
+
+      if (gender !== undefined) updateData.gender = gender ? gender.toString().trim() : null;
+      if (dob !== undefined) updateData.dob = dob ? new Date(dob) : null;
+      if (address !== undefined) updateData.address = address ? address.toString().trim() : null;
+      if (city !== undefined) updateData.city = city ? city.toString().trim() : null;
+      if (state !== undefined) updateData.state = state ? state.toString().trim() : null;
+      if (pincode !== undefined) updateData.pincode = pincode ? pincode.toString().trim() : null;
+      if (notes !== undefined) updateData.notes = notes ? notes.toString().trim() : null;
+
       const customer = await prisma.customer.update({
-        where: { id, tenantId },
+        where: { id },
+        data: updateData,
+        include: { preferences: true }
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
         data: {
-          firstName,
-          lastName,
-          mobile,
-          email,
-          gender,
-          dob: dob ? new Date(dob) : undefined,
-          address,
-          city,
-          state,
-          pincode,
-          notes
+          tenantId,
+          userId: req.user?.id,
+          customerId: customer.id,
+          action: 'CUSTOMER_UPDATED',
+          entity: 'Customer',
+          entityId: customer.id,
+          details: { name: `${customer.firstName} ${customer.lastName}`, mobile: customer.mobile }
         }
       });
 
@@ -262,8 +445,18 @@ export class CustomersController {
       const { deletionReason } = req.body;
       const tenantId = req.tenantId!;
 
+      const existing = await prisma.customer.findFirst({
+        where: { id, tenantId }
+      });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or access denied.', code: 'CUSTOMER_NOT_FOUND' }
+        });
+      }
+
       const customer = await prisma.customer.update({
-        where: { id, tenantId },
+        where: { id },
         data: {
           isDeleted: true,
           deletedAt: new Date(),
@@ -294,8 +487,18 @@ export class CustomersController {
       const { id } = req.params;
       const tenantId = req.tenantId!;
 
+      const existing = await prisma.customer.findFirst({
+        where: { id, tenantId }
+      });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or access denied.', code: 'CUSTOMER_NOT_FOUND' }
+        });
+      }
+
       const customer = await prisma.customer.update({
-        where: { id, tenantId },
+        where: { id },
         data: {
           isDeleted: false,
           deletedAt: null,
@@ -315,13 +518,37 @@ export class CustomersController {
       const { preferredContactMethod, fabricPreferences, fitPreference, notes } = req.body;
       const tenantId = req.tenantId!;
 
+      // Strictly verify customer exists and belongs to this tenant!
+      const customer = await prisma.customer.findFirst({
+        where: { id, tenantId }
+      });
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or access denied.', code: 'CUSTOMER_NOT_FOUND' }
+        });
+      }
+
       const pref = await prisma.customerPreference.upsert({
         where: { customerId: id },
-        update: { preferredContactMethod, fabricPreferences, fitPreference, notes },
-        create: { customerId: id, tenantId, preferredContactMethod, fabricPreferences, fitPreference, notes }
+        update: {
+          preferredContactMethod: preferredContactMethod || undefined,
+          fabricPreferences: fabricPreferences !== undefined ? fabricPreferences : undefined,
+          fitPreference: fitPreference !== undefined ? fitPreference : undefined,
+          notes: notes !== undefined ? notes : undefined
+        },
+        create: {
+          customerId: id,
+          tenantId,
+          preferredContactMethod: preferredContactMethod || 'PHONE',
+          fabricPreferences: fabricPreferences || null,
+          fitPreference: fitPreference || null,
+          notes: notes || null
+        }
       });
 
       return res.json({ success: true, data: pref });
     } catch (err) { next(err); }
   }
 }
+

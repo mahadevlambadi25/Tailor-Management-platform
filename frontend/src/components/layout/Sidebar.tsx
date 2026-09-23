@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   Settings,
   X,
-  Scissors
+  Scissors,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,14 +31,14 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose }) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, subscription, isSubscriptionExpired, isTrial, trialDaysRemaining } = useTenant();
 
   const navItems = [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { to: '/customers', label: t('customers'), icon: Users },
     { to: '/orders', label: t('orders'), icon: ShoppingBag },
     { to: '/orders/new', label: t('newOrder'), icon: PlusCircle, highlight: true },
-    { to: '/production', label: t('production'), icon: KanbanSquare },
+    { to: '/production', label: t('production'), icon: KanbanSquare, roleRestricted: ['SHOP_OWNER', 'MANAGER', 'TAILOR', 'CUTTER', 'FINISHER'] },
     { to: '/appointments', label: t('appointments'), icon: Calendar },
     { to: '/measurements', label: t('measurements'), icon: Ruler },
     { to: '/styles', label: t('styles'), icon: Palette },
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
     { to: '/payments', label: t('payments'), icon: CreditCard },
     { to: '/reports', label: t('reports'), icon: BarChart3, roleRestricted: ['SHOP_OWNER', 'MANAGER', 'CASHIER'] },
     { to: '/documents', label: t('documents'), icon: Printer },
+    { to: '/subscription', label: t('subscription') || 'Subscription & Plans', icon: Sparkles },
     { to: '/customer-portal/demo', label: t('customerPortal'), icon: ShieldCheck },
     { to: '/settings', label: t('settings'), icon: Settings, roleRestricted: ['SHOP_OWNER'] }
   ];
@@ -97,17 +99,75 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
     </div>
   );
 
+  const renderSubscriptionBadge = () => {
+    if (isSubscriptionExpired) {
+      return (
+        <NavLink
+          to="/subscription"
+          onClick={onClose}
+          className="block rounded-xl bg-rose-50 p-3 border border-rose-200 hover:bg-rose-100/80 transition-colors text-left group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-rose-800 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+              Subscription Expired
+            </span>
+            <span className="text-[10px] font-bold text-rose-700 underline group-hover:text-rose-900">Renew</span>
+          </div>
+          <p className="text-[10px] text-rose-600 mt-1 leading-snug">Operations locked. Reactivate your subscription.</p>
+        </NavLink>
+      );
+    }
+
+    if (isTrial) {
+      return (
+        <NavLink
+          to="/subscription"
+          onClick={onClose}
+          className="block rounded-xl bg-amber-50/90 p-3 border border-amber-200/80 hover:bg-amber-100/70 transition-colors text-left"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              Free Trial
+            </span>
+            <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded">
+              {trialDaysRemaining}d left
+            </span>
+          </div>
+          <p className="text-[10px] text-amber-700 mt-1 leading-snug">All features active. Upgrade to keep uninterrupted access.</p>
+        </NavLink>
+      );
+    }
+
+    return (
+      <NavLink
+        to="/subscription"
+        onClick={onClose}
+        className="block rounded-xl bg-blue-50/70 p-3 border border-blue-100/60 hover:bg-blue-100/60 transition-colors text-left"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-blue-950 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            {subscription?.planName || 'Active Atelier'}
+          </span>
+          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
+            Active
+          </span>
+        </div>
+        <p className="text-[10px] text-blue-700 mt-0.5">Limits & subscription details</p>
+      </NavLink>
+    );
+  };
+
   return (
     <>
       {/* Desktop Persistent Sidebar */}
       <aside className="hidden md:flex md:w-64 md:shrink-0 border-r border-slate-200 bg-white flex-col justify-between overflow-y-auto">
         {renderNavLinks()}
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-          <div className="rounded-lg bg-blue-50/70 p-3 border border-blue-100/60">
-            <p className="text-[11px] font-semibold text-blue-900">TailorPro SaaS V1</p>
-            <p className="text-[10px] text-blue-700 mt-0.5">Immutable snapshots & tenant isolation active.</p>
-          </div>
+        <div className="p-3 border-t border-slate-100 bg-slate-50/40">
+          {renderSubscriptionBadge()}
         </div>
       </aside>
 
@@ -148,11 +208,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-              <div className="rounded-lg bg-blue-50/70 p-3 border border-blue-100/60 text-center">
-                <p className="text-[11px] font-semibold text-blue-900">{tenant?.name || 'TailorPro'}</p>
-                <p className="text-[10px] text-blue-700 mt-0.5">Role: {user?.role || 'Staff'}</p>
-              </div>
+            <div className="p-3 border-t border-slate-100 bg-slate-50/40">
+              {renderSubscriptionBadge()}
             </div>
           </div>
         </div>

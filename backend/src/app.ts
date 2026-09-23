@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 // Route Imports
 import authRoutes from './modules/auth/authRoutes';
 import tenantsRoutes from './modules/tenants/tenantsRoutes';
+import subscriptionsRoutes from './modules/subscriptions/subscriptionsRoutes';
 import branchesRoutes from './modules/branches/branchesRoutes';
 import usersRoutes from './modules/users/usersRoutes';
 import customersRoutes from './modules/customers/customersRoutes';
@@ -85,6 +86,7 @@ app.get('/', healthHandler);
 // Mount /api/v1/ Domain Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tenants', tenantsRoutes);
+app.use('/api/v1/subscriptions', subscriptionsRoutes);
 app.use('/api/v1/branches', branchesRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/customers', customersRoutes);

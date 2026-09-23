@@ -49,6 +49,13 @@ api.interceptors.response.use(
         localStorage.removeItem('tailor_user');
         window.location.replace('/login');
       }
+    } else if (err.response?.status === 402) {
+      // 402 SUBSCRIPTION_REQUIRED: Tenant subscription or trial has lapsed.
+      // Do NOT log out user! Preserve credentials and navigate to renewal/subscription page.
+      const isSubscriptionPage = window.location.pathname.startsWith('/subscription');
+      if (!isSubscriptionPage && !isRedirecting) {
+        window.location.replace('/subscription?expired=true');
+      }
     }
     return Promise.reject(err);
   }

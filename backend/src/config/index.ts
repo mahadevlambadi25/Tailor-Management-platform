@@ -14,7 +14,8 @@ export const config = {
   storageLocalDir: process.env.STORAGE_LOCAL_DIR || './uploads',
   defaultTenantSlug: process.env.DEFAULT_TENANT_SLUG || 'royal-bespoke',
   otpExpiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10),
-  otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10)
+  otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10),
+  trialDurationDays: parseInt(process.env.TRIAL_DURATION_DAYS || '14', 10)
 };
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -36,7 +37,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'customers:*', 'orders:create', 'orders:view', 'orders:edit',
     'measurements:create', 'measurements:view', 'styles:view',
     'payments:create', 'payments:view', 'appointments:*',
-    'notifications:*', 'documents:view'
+    'notifications:*', 'documents:view', 'reports:view'
   ],
   TAILOR: [
     'orders:view', 'measurements:view', 'styles:view',

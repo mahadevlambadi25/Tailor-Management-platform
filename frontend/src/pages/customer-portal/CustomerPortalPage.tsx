@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { api } from '../../api/client';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { formatCurrency } from '../../utils/currency';
 import { 
   Package, Calendar, Ruler, LogOut, 
   Sparkles
@@ -163,7 +164,7 @@ export default function CustomerPortalPage() {
               <div>
                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Balance Due</p>
                 <p className="text-2xl font-bold text-white">
-                  ?{orders.reduce((sum, o) => sum + (o.balanceDue || 0), 0).toLocaleString()}
+                  {formatCurrency(orders.reduce((sum, o) => sum + (o.balanceDue || 0), 0))}
                 </p>
               </div>
             </div>
@@ -242,7 +243,7 @@ export default function CustomerPortalPage() {
                           {order.items?.length || 1} Item(s)
                         </span>
                         <span className="font-bold text-slate-800">
-                          ?{order.grandTotal.toLocaleString()}
+                          {formatCurrency(order.grandTotal)}
                         </span>
                       </div>
                     </div>
@@ -293,7 +294,7 @@ export default function CustomerPortalPage() {
                                   : 'bg-slate-100 text-slate-400 border border-slate-300'
                               }`}
                             >
-                              {step.isComplete ? '?' : idx + 1}
+                              {step.isComplete ? '✓' : idx + 1}
                             </div>
                             <span className="text-[11px] font-medium text-slate-600 mt-2 text-center max-w-[80px] leading-tight">
                               {step.label}
@@ -348,18 +349,18 @@ export default function CustomerPortalPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between text-slate-600">
                           <span>Total Amount:</span>
-                          <span className="font-medium">?{selectedOrder.grandTotal.toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(selectedOrder.grandTotal)}</span>
                         </div>
                         <div className="flex justify-between text-emerald-700">
                           <span>Advance Paid:</span>
-                          <span className="font-medium">?{selectedOrder.advancePaid.toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(selectedOrder.advancePaid)}</span>
                         </div>
                         <div className="flex justify-between font-bold text-base pt-2 border-t border-slate-200">
                           <span className={selectedOrder.balanceDue > 0 ? 'text-rose-600' : 'text-slate-800'}>
                             Balance Remaining:
                           </span>
                           <span className={selectedOrder.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-700'}>
-                            ?{selectedOrder.balanceDue.toLocaleString()}
+                            {formatCurrency(selectedOrder.balanceDue)}
                           </span>
                         </div>
                       </div>

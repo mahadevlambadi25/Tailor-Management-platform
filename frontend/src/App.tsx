@@ -28,6 +28,7 @@ import { ReportsPage } from './pages/reports/ReportsPage';
 import { PrintableShellPage } from './pages/documents/PrintableShellPage';
 import CustomerPortalPage from './pages/customer-portal/CustomerPortalPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
 
 export function App() {
   return (
@@ -63,8 +64,10 @@ export function App() {
                     <Route path="/orders/new" element={<OrderWizardPage />} />
                     <Route path="/orders/:id" element={<OrderDetailPage />} />
 
-                    {/* Production & Kanban */}
-                    <Route path="/production" element={<ProductionBoardPage />} />
+                    {/* Production & Kanban (Workshop & Management only) */}
+                    <Route element={<ProtectedRoute allowedRoles={['SHOP_OWNER', 'MANAGER', 'TAILOR', 'CUTTER', 'FINISHER']} />}>
+                      <Route path="/production" element={<ProductionBoardPage />} />
+                    </Route>
 
                     {/* Appointments & Fitting Schedule */}
                     <Route path="/appointments" element={<AppointmentsPage />} />
@@ -96,6 +99,9 @@ export function App() {
                     <Route element={<ProtectedRoute allowedRoles={['SHOP_OWNER']} />}>
                       <Route path="/settings" element={<SettingsPage />} />
                     </Route>
+
+                    {/* Atelier Subscription & Billing Lifecycle */}
+                    <Route path="/subscription" element={<SubscriptionPage />} />
                   </Route>
                 </Route>
 

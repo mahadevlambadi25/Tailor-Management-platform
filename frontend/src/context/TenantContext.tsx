@@ -1,6 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
 
+export interface SubscriptionDetails {
+  id?: string;
+  tenantId?: string;
+  planName: string;
+  status: 'TRIAL' | 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PAST_DUE' | string;
+  trialStart?: string | null;
+  trialEnd?: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  maxOrdersPerMonth?: number;
+  maxStaff?: number;
+  maxBranches?: number;
+}
+
 export interface TenantInfo {
   id: string;
   name: string;
@@ -13,10 +30,7 @@ export interface TenantInfo {
   defaultUnit: 'INCHES' | 'CENTIMETERS';
   gstNumber: string | null;
   config?: any;
-  subscription?: {
-    planName: string;
-    status: string;
-  };
+  subscription?: SubscriptionDetails;
   featureFlags?: Array<{ featureKey: string; isEnabled: boolean }>;
   demoStats?: {
     demoOrdersCount: number;
@@ -28,9 +42,14 @@ export interface TenantInfo {
 
 interface TenantContextType {
   tenant: TenantInfo | null;
+  subscription: SubscriptionDetails | null;
   tenantSlug: string;
   setTenantSlug: (slug: string) => void;
   isLoading: boolean;
+  isSubscriptionActive: boolean;
+  isSubscriptionExpired: boolean;
+  isTrial: boolean;
+  trialDaysRemaining: number;
   refreshTenant: () => Promise<void>;
   isFeatureEnabled: (key: string) => boolean;
 }
@@ -73,8 +92,35 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return flag ? flag.isEnabled : false;
   };
 
+  const subscription = tenant?.subscription || null;
+  const isTrial = subscription?.status === 'TRIAL';
+  const isSubscriptionExpired = subscription?.status === 'EXPIRED';
+  const isSubscriptionActive = subscription?.status === 'ACTIVE' || (
+    isTrial && (!subscription?.trialEnd || new Date(subscription.trialEnd).getTime() > Date.now())
+  );
+
+  let trialDaysRemaining = 0;
+  if (isTrial && subscription?.trialEnd) {
+    const diff = new Date(subscription.trialEnd).getTime() - Date.now();
+    trialDaysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
   return (
-    <TenantContext.Provider value={{ tenant, tenantSlug, setTenantSlug, isLoading, refreshTenant: fetchTenant, isFeatureEnabled }}>
+    <TenantContext.Provider
+      value={{
+        tenant,
+        subscription,
+        tenantSlug,
+        setTenantSlug,
+        isLoading,
+        isSubscriptionActive,
+        isSubscriptionExpired,
+        isTrial,
+        trialDaysRemaining,
+        refreshTenant: fetchTenant,
+        isFeatureEnabled
+      }}
+    >
       {children}
     </TenantContext.Provider>
   );

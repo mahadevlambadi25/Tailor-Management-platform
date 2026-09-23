@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { formatCurrency } from '../../utils/currency';
 import { Printer, ArrowLeft, Scissors, QrCode } from 'lucide-react';
 
 export const PrintableShellPage: React.FC = () => {
@@ -157,7 +158,7 @@ export const PrintableShellPage: React.FC = () => {
                 <div key={item.id} className="rounded-lg border border-slate-200 p-3 text-xs space-y-2">
                   <div className="flex justify-between font-bold text-slate-900 border-b border-slate-100 pb-1">
                     <span>{idx + 1}. {item.garmentType?.name} (Qty: {item.quantity})</span>
-                    <span>₹{Number(item.totalItemPrice).toLocaleString()}</span>
+                    <span>{formatCurrency(item.totalItemPrice)}</span>
                   </div>
 
                   {item.measurementSnapshot && (
@@ -189,25 +190,25 @@ export const PrintableShellPage: React.FC = () => {
             <div className="w-64 space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-600">Total Garments:</span>
-                <span className="font-bold">₹{Number(order.totalAmount).toLocaleString()}</span>
+                <span className="font-bold">{formatCurrency(order.totalAmount)}</span>
               </div>
               {Number(order.discountAmount) > 0 && (
                 <div className="flex justify-between text-rose-600">
                   <span>Discount:</span>
-                  <span className="font-bold">-₹{Number(order.discountAmount).toLocaleString()}</span>
+                  <span className="font-bold">-{formatCurrency(order.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-sm">
                 <span>Net Total:</span>
-                <span>₹{Number(order.netAmount).toLocaleString()}</span>
+                <span>{formatCurrency(order.netAmount)}</span>
               </div>
               <div className="flex justify-between text-emerald-700 font-semibold">
                 <span>Paid / Advance:</span>
-                <span>₹{Number(order.paidAmount).toLocaleString()}</span>
+                <span>{formatCurrency(order.paidAmount)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-900 pt-1 font-bold text-sm text-rose-600">
                 <span>Remaining Balance:</span>
-                <span>₹{Number(order.balanceAmount).toLocaleString()}</span>
+                <span>{formatCurrency(order.balanceAmount)}</span>
               </div>
             </div>
           </div>

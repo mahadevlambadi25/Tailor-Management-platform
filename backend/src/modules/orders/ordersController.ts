@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../core/prisma';
 import { notificationService } from '../notifications/notificationService';
 import { NotificationChannel, OrderStatus, PaymentMethod, PaymentStatus, ProductionStageName, RoleType, UnitSystem } from '@prisma/client';
+import { PaymentCalculationService } from '../payments/paymentCalculationService';
 
 export class OrdersController {
   // List Orders with rich filtering
@@ -17,21 +18,47 @@ export class OrdersController {
       if (status) whereClause.status = status as OrderStatus;
       if (customerId) whereClause.customerId = customerId as string;
       if (branchId) whereClause.branchId = branchId as string;
+
       if (deliveryDate) {
         const d = new Date(deliveryDate as string);
-        whereClause.deliveryDate = {
-          gte: new Date(d.setHours(0, 0, 0, 0)),
-          lte: new Date(d.setHours(23, 59, 59, 999))
-        };
+        if (!isNaN(d.getTime())) {
+          const start = new Date(d);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(d);
+          end.setHours(23, 59, 59, 999);
+          whereClause.deliveryDate = {
+            gte: start,
+            lte: end
+          };
+        }
       }
+
       if (search) {
         const q = (search as string).trim();
-        whereClause.OR = [
+        const orConditions: any[] = [
           { orderNumber: { contains: q, mode: 'insensitive' } },
           { customer: { firstName: { contains: q, mode: 'insensitive' } } },
           { customer: { lastName: { contains: q, mode: 'insensitive' } } },
-          { customer: { mobile: { contains: q } } }
+          { customer: { mobile: { contains: q } } },
+          { customer: { customerId: { contains: q, mode: 'insensitive' } } }
         ];
+
+        // Multi-word customer name search (e.g. "Rajesh Kumar")
+        const terms = q.split(/\s+/).filter(Boolean);
+        if (terms.length > 1) {
+          orConditions.push({
+            customer: {
+              AND: terms.map(term => ({
+                OR: [
+                  { firstName: { contains: term, mode: 'insensitive' } },
+                  { lastName: { contains: term, mode: 'insensitive' } }
+                ]
+              }))
+            }
+          });
+        }
+
+        whereClause.OR = orConditions;
       }
 
       if (tailorId) {
@@ -71,7 +98,7 @@ export class OrdersController {
     } catch (err) { next(err); }
   }
 
-  // Get Order By ID
+  // Get Order By ID (includes items, snapshots, styles, payments, and audit logs)
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -96,16 +123,54 @@ export class OrdersController {
               trials: { include: { alterations: true } }
             }
           },
-          payments: { orderBy: { createdAt: 'desc' } },
+          payments: {
+            include: { receipts: true },
+            orderBy: { createdAt: 'desc' }
+          },
           invoices: true
         }
       });
 
       if (!order) {
-        return res.status(404).json({ success: false, error: { message: 'Order not found' } });
+        return res.status(404).json({ success: false, error: { message: 'Order not found or access denied.', code: 'ORDER_NOT_FOUND' } });
       }
 
-      return res.json({ success: true, data: order });
+      // Enrich payments with recordedBy staff details
+      const staffIds = order.payments.map((p) => p.recordedById).filter(Boolean) as string[];
+      const staffMembers = staffIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: staffIds }, tenantId },
+            select: { id: true, name: true, role: true }
+          })
+        : [];
+      const staffMap = new Map(staffMembers.map((s) => [s.id, s]));
+
+      const enrichedPayments = order.payments.map((p) => ({
+        ...p,
+        recordedBy: p.recordedById ? staffMap.get(p.recordedById) || null : null
+      }));
+
+      // Fetch audit logs for the order lifecycle timeline
+      const auditLogs = await prisma.auditLog.findMany({
+        where: {
+          tenantId,
+          entity: 'Order',
+          entityId: id
+        },
+        include: {
+          user: { select: { name: true, role: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          ...order,
+          payments: enrichedPayments,
+          auditLogs
+        }
+      });
     } catch (err) { next(err); }
   }
 
@@ -131,16 +196,19 @@ export class OrdersController {
       if (!customerId || !deliveryDate || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({
           success: false,
-          error: { message: 'Missing required order fields (customerId, deliveryDate, or items array)' }
+          error: { message: 'Missing required order fields (customerId, deliveryDate, or items array)', code: 'MISSING_FIELDS' }
         });
       }
 
-      // Verify customer exists in tenant
+      // Strictly verify customer exists in tenant and is active
       const customer = await prisma.customer.findFirst({
         where: { id: customerId, tenantId, isDeleted: false }
       });
       if (!customer) {
-        return res.status(404).json({ success: false, error: { message: 'Customer not found' } });
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Customer not found or does not belong to this shop.', code: 'CUSTOMER_NOT_FOUND' }
+        });
       }
 
       // 1. Calculate Totals for items
@@ -171,8 +239,8 @@ export class OrdersController {
           totalItemPrice,
           internalNotes: item.internalNotes,
           customerNotes: item.customerNotes,
-          measurementSnapshot: item.measurementSnapshot, // { valuesSnapshot, unit, measurementVersionId, templateVersionId }
-          styleOptions: item.styleOptions // [{ styleId, selectedOptions }]
+          measurementSnapshot: item.measurementSnapshot,
+          styleOptions: item.styleOptions
         };
       });
 
@@ -277,7 +345,7 @@ export class OrdersController {
                 }
               });
 
-              // Critical: Save Immutable Historical Measurement Snapshot!
+              // Critical: Save Immutable Historical Measurement Snapshot
               if (item.measurementSnapshot) {
                 await tx.orderItemMeasurement.create({
                   data: {
@@ -333,11 +401,12 @@ export class OrdersController {
               });
 
               // Generate Receipt
+              const receiptNumber = await PaymentCalculationService.generateReceiptNumber(tx, tenantId);
               await tx.receipt.create({
                 data: {
                   tenantId,
                   paymentId: p.id,
-                  receiptNumber: `REC-${year}-${candidateSeq.toString()}`,
+                  receiptNumber,
                   amount: advance
                 }
               });
@@ -360,7 +429,7 @@ export class OrdersController {
           });
         } catch (err: any) {
           if (err.code === 'P2002' && attempts < 5) {
-            continue; // Unique constraint race on orderNumber or receiptNumber, retry with next candidate
+            continue; // Unique constraint race on orderNumber or receiptNumber, retry
           }
           throw err;
         }
@@ -375,9 +444,160 @@ export class OrdersController {
         channel: NotificationChannel.SMS,
         title: 'Order Confirmed',
         message: `Dear ${customer.firstName}, your order ${createdOrder.orderNumber} for ₹${createdOrder.netAmount} has been received. Expected delivery: ${new Date(deliveryDate).toLocaleDateString()}.`
-      });
+      }).catch(e => console.error('Notification failed', e));
 
       return res.status(201).json({ success: true, data: createdOrder });
     } catch (err) { next(err); }
   }
+
+  // Update Order Status (with delay reason enforcement and audit log)
+  static async updateStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { status, delayReason, revisedDeliveryDate } = req.body;
+      const tenantId = req.tenantId!;
+
+      if (!status || !Object.values(OrderStatus).includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: { message: `Invalid status. Valid values: ${Object.values(OrderStatus).join(', ')}`, code: 'INVALID_STATUS' }
+        });
+      }
+
+      const existing = await prisma.order.findFirst({
+        where: { id, tenantId },
+        include: { customer: true }
+      });
+
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Order not found or access denied.', code: 'ORDER_NOT_FOUND' }
+        });
+      }
+
+      // Enforce delay rule if revisedDeliveryDate is provided
+      if (revisedDeliveryDate) {
+        if (!delayReason || !delayReason.trim()) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Delay reason is mandatory when revising delivery date.', code: 'MISSING_DELAY_REASON' }
+          });
+        }
+      }
+
+      const updateData: any = {
+        status: status as OrderStatus
+      };
+
+      if (revisedDeliveryDate) {
+        updateData.revisedDeliveryDate = new Date(revisedDeliveryDate);
+        updateData.delayReason = delayReason.trim();
+      } else if (delayReason) {
+        updateData.delayReason = delayReason.trim();
+      }
+
+      if (status === OrderStatus.CANCELLED) {
+        updateData.isCancelled = true;
+        if (req.body.cancellationReason) {
+          updateData.cancellationReason = req.body.cancellationReason;
+        }
+      }
+
+      const updated = await prisma.order.update({
+        where: { id },
+        data: updateData,
+        include: { customer: true, items: { include: { garmentType: true } }, payments: true }
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId: req.user?.id,
+          customerId: existing.customerId,
+          action: 'ORDER_STATUS_UPDATED',
+          entity: 'Order',
+          entityId: existing.id,
+          details: {
+            previousStatus: existing.status,
+            newStatus: status,
+            delayReason: updateData.delayReason || null,
+            revisedDeliveryDate: updateData.revisedDeliveryDate || null
+          }
+        }
+      });
+
+      // Send notification on milestone statuses
+      if (status === OrderStatus.READY_FOR_PICKUP || status === OrderStatus.DELIVERED) {
+        await notificationService.send({
+          tenantId,
+          customerId: existing.customerId,
+          eventType: status === OrderStatus.READY_FOR_PICKUP ? 'ORDER_READY' : 'ORDER_DELIVERED',
+          recipient: existing.customer.mobile,
+          channel: NotificationChannel.SMS,
+          title: status === OrderStatus.READY_FOR_PICKUP ? 'Order Ready for Pickup' : 'Order Delivered',
+          message: `Dear ${existing.customer.firstName}, your order ${existing.orderNumber} is ${status === OrderStatus.READY_FOR_PICKUP ? 'ready for pickup at our boutique.' : 'delivered. Thank you!'}`
+        }).catch(e => console.error('Notification failed', e));
+      }
+
+      return res.json({ success: true, data: updated });
+    } catch (err) { next(err); }
+  }
+
+  // Update Order (delivery date, revised date, priority, notes)
+  static async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const tenantId = req.tenantId!;
+      const { deliveryDate, revisedDeliveryDate, delayReason, priority, internalNotes, customerNotes } = req.body;
+
+      const existing = await prisma.order.findFirst({
+        where: { id, tenantId }
+      });
+
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Order not found or access denied.', code: 'ORDER_NOT_FOUND' }
+        });
+      }
+
+      if (revisedDeliveryDate && (!delayReason || !delayReason.trim())) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Delay reason is mandatory when revising delivery date.', code: 'MISSING_DELAY_REASON' }
+        });
+      }
+
+      const updateData: any = {};
+      if (deliveryDate) updateData.deliveryDate = new Date(deliveryDate);
+      if (revisedDeliveryDate) updateData.revisedDeliveryDate = new Date(revisedDeliveryDate);
+      if (delayReason !== undefined) updateData.delayReason = delayReason ? delayReason.trim() : null;
+      if (priority !== undefined) updateData.priority = priority;
+      if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
+      if (customerNotes !== undefined) updateData.customerNotes = customerNotes;
+
+      const updated = await prisma.order.update({
+        where: { id },
+        data: updateData,
+        include: { customer: true, items: { include: { garmentType: true } } }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId: req.user?.id,
+          customerId: existing.customerId,
+          action: 'ORDER_UPDATED',
+          entity: 'Order',
+          entityId: existing.id,
+          details: updateData
+        }
+      });
+
+      return res.json({ success: true, data: updated });
+    } catch (err) { next(err); }
+  }
 }
+
