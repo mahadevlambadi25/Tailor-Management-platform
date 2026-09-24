@@ -9,6 +9,9 @@ export { SubscriptionStatus };
 export const SUBSCRIPTION_PLANS: Record<string, {
   name: string;
   displayName: string;
+  priceInInr: number;
+  amountInPaise: number;
+  currency: string;
   maxOrdersPerMonth: number;
   maxStaff: number;
   maxBranches: number;
@@ -17,6 +20,9 @@ export const SUBSCRIPTION_PLANS: Record<string, {
   FREE_TRIAL: {
     name: 'FREE_TRIAL',
     displayName: '14-Day Free Trial',
+    priceInInr: 0,
+    amountInPaise: 0,
+    currency: 'INR',
     maxOrdersPerMonth: 100,
     maxStaff: 5,
     maxBranches: 1,
@@ -25,6 +31,9 @@ export const SUBSCRIPTION_PLANS: Record<string, {
   STARTER: {
     name: 'STARTER',
     displayName: 'Starter Atelier',
+    priceInInr: 999,
+    amountInPaise: 99900,
+    currency: 'INR',
     maxOrdersPerMonth: 500,
     maxStaff: 15,
     maxBranches: 2,
@@ -33,6 +42,9 @@ export const SUBSCRIPTION_PLANS: Record<string, {
   PROFESSIONAL: {
     name: 'PROFESSIONAL',
     displayName: 'Professional Boutique',
+    priceInInr: 2499,
+    amountInPaise: 249900,
+    currency: 'INR',
     maxOrdersPerMonth: 2000,
     maxStaff: 50,
     maxBranches: 5,
@@ -41,6 +53,20 @@ export const SUBSCRIPTION_PLANS: Record<string, {
   BUSINESS: {
     name: 'BUSINESS',
     displayName: 'Enterprise Haute Couture',
+    priceInInr: 5999,
+    amountInPaise: 599900,
+    currency: 'INR',
+    maxOrdersPerMonth: 10000,
+    maxStaff: 200,
+    maxBranches: 20,
+    features: ['Unlimited Everything', 'Priority SLA', 'Dedicated Telemetry']
+  },
+  ENTERPRISE: {
+    name: 'ENTERPRISE',
+    displayName: 'Enterprise Haute Couture',
+    priceInInr: 5999,
+    amountInPaise: 599900,
+    currency: 'INR',
     maxOrdersPerMonth: 10000,
     maxStaff: 200,
     maxBranches: 20,
@@ -153,7 +179,13 @@ export class SubscriptionService {
    * Activates a subscription (future payment integration target).
    * ONLY during confirmed payment / activation may demo data optionally be cleaned.
    */
-  static async activateSubscription(tenantId: string, planName = 'PROFESSIONAL', options?: { clearDemo?: boolean; paymentId?: string }) {
+  static async activateSubscription(tenantId: string, planName = 'PROFESSIONAL', options?: {
+    clearDemo?: boolean;
+    paymentId?: string;
+    paymentProvider?: string;
+    providerSubscriptionId?: string;
+    providerCustomerId?: string;
+  }) {
     const planConfig = SUBSCRIPTION_PLANS[planName] || SUBSCRIPTION_PLANS.PROFESSIONAL;
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
@@ -161,7 +193,7 @@ export class SubscriptionService {
     const subscription = await prisma.subscription.upsert({
       where: { tenantId },
       update: {
-        planName,
+        planName: planConfig.name,
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -169,11 +201,14 @@ export class SubscriptionService {
         endDate: periodEnd,
         maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
         maxStaff: planConfig.maxStaff,
-        maxBranches: planConfig.maxBranches
+        maxBranches: planConfig.maxBranches,
+        paymentProvider: options?.paymentProvider || 'razorpay',
+        providerSubscriptionId: options?.paymentId || options?.providerSubscriptionId || null,
+        providerCustomerId: options?.providerCustomerId || null
       },
       create: {
         tenantId,
-        planName,
+        planName: planConfig.name,
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -181,7 +216,10 @@ export class SubscriptionService {
         endDate: periodEnd,
         maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
         maxStaff: planConfig.maxStaff,
-        maxBranches: planConfig.maxBranches
+        maxBranches: planConfig.maxBranches,
+        paymentProvider: options?.paymentProvider || 'razorpay',
+        providerSubscriptionId: options?.paymentId || options?.providerSubscriptionId || null,
+        providerCustomerId: options?.providerCustomerId || null
       }
     });
 
@@ -189,6 +227,23 @@ export class SubscriptionService {
     if (options?.clearDemo) {
       purgeResult = await purgeTenantDemoData(tenantId);
     }
+
+    // Audit Log for confirmed subscription activation
+    await prisma.auditLog.create({
+      data: {
+        tenantId,
+        action: 'SUBSCRIPTION_ACTIVATED',
+        entity: 'Subscription',
+        entityId: subscription.id,
+        details: {
+          planName: planConfig.name,
+          status: SubscriptionStatus.ACTIVE,
+          paymentId: options?.paymentId,
+          paymentProvider: options?.paymentProvider || 'razorpay',
+          demoPurged: options?.clearDemo ?? false
+        }
+      }
+    }).catch((err) => logger.error('[SubscriptionService] Failed to record subscription activation audit log', err));
 
     return { subscription, purgeResult };
   }

@@ -1,6 +1,7 @@
 import { prisma } from '../src/core/prisma';
 import bcrypt from 'bcryptjs';
 import { subscriptionService } from '../src/modules/subscriptions/subscriptionService';
+import { RazorpayService } from '../src/modules/subscriptions/razorpayService';
 import { seedDemoDataForTenant, purgeTenantDemoData } from '../src/modules/demo/demoService';
 import { SubscriptionStatus, RoleType } from '@prisma/client';
 
@@ -454,6 +455,364 @@ async function runSubscriptionArchitectureTests() {
       }
     }
     assert(prodBlocked, 'devSimulateStatus strictly throws error when NODE_ENV === "production"');
+
+    // -------------------------------------------------------------------------
+    // Test 12: Razorpay SaaS Subscription Checkout Order Creation (Step 1)
+    // -------------------------------------------------------------------------
+    console.log('\n[Test 12] Razorpay SaaS Checkout Order Creation (Step 1)...');
+
+    // 12.1 Unauthenticated request rejected
+    const unauthCheckout = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'STARTER' })
+    });
+    assert(unauthCheckout.status === 401, 'POST /subscriptions/checkout rejects unauthenticated request (401)');
+
+    // 12.2 Missing or invalid plan rejected
+    const invalidPlanRes = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'NON_EXISTENT_PLAN_XYZ' })
+    });
+    const invalidPlanData: any = await invalidPlanRes.json();
+    assert(
+      invalidPlanRes.status === 400 && invalidPlanData.error?.code === 'INVALID_PLAN',
+      'POST /subscriptions/checkout rejects non-existent plan with 400 INVALID_PLAN'
+    );
+
+    // 12.3 FREE_TRIAL checkout rejected
+    const freeTrialCheckoutRes = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'FREE_TRIAL' })
+    });
+    assert(freeTrialCheckoutRes.status === 400, 'POST /subscriptions/checkout rejects FREE_TRIAL (paid plans only)');
+
+    // 12.4 Authenticated checkout order creation
+    const subBeforeCheckout = await prisma.subscription.findUnique({ where: { tenantId: tenantA.id } });
+    const checkoutRes = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'STARTER' })
+    });
+    assert(checkoutRes.status === 200, 'POST /subscriptions/checkout returns HTTP 200');
+
+    const checkoutText = await checkoutRes.text();
+    const checkoutData = JSON.parse(checkoutText);
+    assert(checkoutData.success === true, 'Checkout response success is true');
+    assert(typeof checkoutData.data?.orderId === 'string' && checkoutData.data.orderId.startsWith('order_'), 'Returns valid Razorpay orderId');
+    assert(checkoutData.data?.amount === 99900, 'Returns correct server-side amount in paise for STARTER (99900)');
+    assert(checkoutData.data?.currency === 'INR', 'Returns correct currency (INR)');
+    assert(typeof checkoutData.data?.keyId === 'string' && checkoutData.data.keyId.length > 0, 'Returns public keyId');
+    assert(checkoutData.data?.plan === 'STARTER', 'Returns requested plan name');
+
+    // 12.5 Secret protection
+    assert(!checkoutText.includes('placeholder_secret') && !checkoutText.includes('razorpayKeySecret') && checkoutData.data?.keySecret === undefined, 'Never exposes RAZORPAY_KEY_SECRET in response');
+
+    // 12.6 Frontend amount manipulation protection
+    const manipulatedRes = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'PROFESSIONAL', amount: 100 }) // Attempting client-side amount override
+    });
+    const manipulatedData: any = await manipulatedRes.json();
+    assert(manipulatedData.data?.amount === 249900, 'Frontend amount manipulation ignored; server calculated 249900 for PROFESSIONAL');
+
+    // 12.7 Tenant spoofing protection
+    const spoofRes = await fetch(`${API_BASE}/subscriptions/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({ plan: 'ENTERPRISE', tenantId: tenantB.id }) // Attempting to spoof Tenant B
+    });
+    const spoofData: any = await spoofRes.json();
+    assert(spoofData.success === true, 'Checkout succeeds using authenticated tenant context');
+    const subBCheck = await prisma.subscription.findUnique({ where: { tenantId: tenantB.id } });
+    assert(subBCheck?.status === SubscriptionStatus.TRIAL, 'Tenant B remains untouched by spoofing attempt');
+
+    // 12.8 Subscription status NOT activated & demo data NOT purged
+    const subAfterCheckout = await prisma.subscription.findUnique({ where: { tenantId: tenantA.id } });
+    assert(subAfterCheckout?.status === subBeforeCheckout?.status, 'Subscription status remains unchanged after checkout alone (never activated before payment/webhook)');
+
+    // -------------------------------------------------------------------------
+    // Test 13: Razorpay Payment Signature Verification & Activation (Step 2)
+    // -------------------------------------------------------------------------
+    console.log('\n[Test 13] Razorpay Payment Signature Verification & Activation (Step 2)...');
+
+    // 13.1 Missing required payment verification parameters rejected (400)
+    const emptyVerifyRes = await fetch(`${API_BASE}/subscriptions/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({})
+    });
+    assert(emptyVerifyRes.status === 400, 'POST /subscriptions/verify-payment rejects missing parameters (400)');
+
+    // 13.2 Invalid payment signature rejected (400) and does NOT activate subscription
+    const badSigVerifyRes = await fetch(`${API_BASE}/subscriptions/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({
+        razorpay_order_id: 'order_test_fake_123',
+        razorpay_payment_id: 'pay_test_fake_123',
+        razorpay_signature: '0000000000000000000000000000000000000000000000000000000000000000',
+        plan: 'PROFESSIONAL'
+      })
+    });
+    const badSigData: any = await badSigVerifyRes.json();
+    assert(badSigVerifyRes.status === 400 && badSigData.error?.code === 'INVALID_SIGNATURE', 'POST /subscriptions/verify-payment rejects forged/invalid signature');
+
+    // 13.3 Seed demo data + real customer for Tenant A before verified activation
+    await seedDemoDataForTenant(tenantA.id);
+    const realCustomerA = await prisma.customer.create({
+      data: {
+        customerId: `CUST-REAL-${Date.now()}-A`,
+        tenantId: tenantA.id,
+        firstName: 'Real VIP',
+        lastName: 'Customer A',
+        mobile: '+91 9999111122',
+        isDemo: false
+      }
+    });
+    const demoCountBeforeVerify = await prisma.customer.count({ where: { tenantId: tenantA.id, isDemo: true } });
+    assert(demoCountBeforeVerify > 0, 'Demo customers seeded prior to payment verification');
+
+    // 13.4 Valid payment signature activates correct subscription
+    const orderIdA = 'order_valid_atelier_001';
+    const paymentIdA = 'pay_valid_checkout_001';
+    const validSigA = RazorpayService.generatePaymentSignature(orderIdA, paymentIdA);
+
+    const validVerifyRes = await fetch(`${API_BASE}/subscriptions/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({
+        razorpay_order_id: orderIdA,
+        razorpay_payment_id: paymentIdA,
+        razorpay_signature: validSigA,
+        plan: 'PROFESSIONAL'
+      })
+    });
+    assert(validVerifyRes.status === 200, 'POST /subscriptions/verify-payment returns 200 on valid signature');
+    const validVerifyData: any = await validVerifyRes.json();
+    assert(validVerifyData.success === true, 'Verification response success is true');
+
+    // Verify DB state for Tenant A
+    const subAVerified = await prisma.subscription.findUnique({ where: { tenantId: tenantA.id } });
+    assert(subAVerified?.status === SubscriptionStatus.ACTIVE, 'Tenant A subscription is ACTIVE');
+    assert(subAVerified?.planName === 'PROFESSIONAL', 'Plan is set to PROFESSIONAL');
+    assert(subAVerified?.paymentProvider === 'razorpay', 'Payment provider recorded as razorpay');
+    assert(subAVerified?.providerSubscriptionId === paymentIdA, 'Provider payment ID stored correctly');
+
+    // 13.5 Demo data is purged only after confirmed successful activation
+    const demoCountAfterVerify = await prisma.customer.count({ where: { tenantId: tenantA.id, isDemo: true } });
+    assert(demoCountAfterVerify === 0, 'Tenant A demo data successfully purged after verified payment');
+
+    // 13.6 Real customer data strictly preserved
+    const realCustomerCheckA = await prisma.customer.findUnique({ where: { id: realCustomerA.id } });
+    assert(!!realCustomerCheckA, 'Real customer data strictly preserved across payment activation');
+
+    // 13.7 Idempotency: duplicate verify call succeeds idempotently without re-purging or error
+    const duplicateVerifyRes = await fetch(`${API_BASE}/subscriptions/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({
+        razorpay_order_id: orderIdA,
+        razorpay_payment_id: paymentIdA,
+        razorpay_signature: validSigA,
+        plan: 'PROFESSIONAL'
+      })
+    });
+    const duplicateVerifyData: any = await duplicateVerifyRes.json();
+    assert(duplicateVerifyRes.status === 200 && duplicateVerifyData.idempotent === true, 'Duplicate payment verification is idempotent');
+
+    // 13.8 Tenant isolation: Tenant A cannot activate Tenant B's subscription
+    const crossTenantVerifyRes = await fetch(`${API_BASE}/subscriptions/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+        'x-tenant-slug': TENANT_A_SLUG
+      },
+      body: JSON.stringify({
+        tenantId: tenantB.id, // Attacker tries to pass Tenant B
+        razorpay_order_id: 'order_spoof_001',
+        razorpay_payment_id: 'pay_spoof_001',
+        razorpay_signature: RazorpayService.generatePaymentSignature('order_spoof_001', 'pay_spoof_001'),
+        plan: 'ENTERPRISE'
+      })
+    });
+    assert(crossTenantVerifyRes.status === 200, 'Request processed using authenticated context');
+    const subBAfterSpoof = await prisma.subscription.findUnique({ where: { tenantId: tenantB.id } });
+    assert(subBAfterSpoof?.status === SubscriptionStatus.TRIAL, 'Tenant B subscription remains TRIAL (not activated by Tenant A)');
+
+    // -------------------------------------------------------------------------
+    // Test 14: Razorpay Webhook Processing, Idempotency & Security (Step 2)
+    // -------------------------------------------------------------------------
+    console.log('\n[Test 14] Razorpay Webhook Processing, Idempotency & Security (Step 2)...');
+
+    // 14.1 Webhook without signature header rejected (400)
+    const noSigWebhookRes = await fetch(`${API_BASE}/subscriptions/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'order.paid' })
+    });
+    assert(noSigWebhookRes.status === 400, 'POST /subscriptions/webhook rejects missing signature header (400)');
+
+    // 14.2 Webhook with forged signature rejected (400)
+    const forgedWebhookRes = await fetch(`${API_BASE}/subscriptions/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': '0000000000000000000000000000000000000000000000000000000000000000'
+      },
+      body: JSON.stringify({ event: 'order.paid', notes: { tenantId: tenantB.id } })
+    });
+    assert(forgedWebhookRes.status === 400, 'POST /subscriptions/webhook rejects invalid signature (400)');
+
+    // 14.3 Seed demo data + real customer for Tenant B
+    await seedDemoDataForTenant(tenantB.id);
+    const realCustomerB = await prisma.customer.create({
+      data: {
+        customerId: `CUST-REAL-${Date.now()}-B`,
+        tenantId: tenantB.id,
+        firstName: 'Real VIP',
+        lastName: 'Customer B',
+        mobile: '+91 9999333344',
+        isDemo: false
+      }
+    });
+
+    // 14.4 Failed payment webhook does NOT activate subscription
+    const failEventPayload = JSON.stringify({
+      entity: 'event',
+      id: `evt_fail_${Date.now()}`,
+      event: 'payment.failed',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_failed_001',
+            status: 'failed',
+            error_description: 'Card declined by issuing bank',
+            notes: { tenantId: tenantB.id }
+          }
+        }
+      }
+    });
+    const failWebhookSig = RazorpayService.generateWebhookSignature(failEventPayload);
+    const failWebhookRes = await fetch(`${API_BASE}/subscriptions/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': failWebhookSig
+      },
+      body: failEventPayload
+    });
+    assert(failWebhookRes.status === 200, 'Failed payment webhook acknowledged');
+    const subBFailCheck = await prisma.subscription.findUnique({ where: { tenantId: tenantB.id } });
+    assert(subBFailCheck?.status !== SubscriptionStatus.ACTIVE, 'Failed payment webhook does NOT activate subscription (remains non-ACTIVE)');
+
+    // Demo data for Tenant B preserved despite failure event
+    const demoBAfterFail = await prisma.customer.count({ where: { tenantId: tenantB.id, isDemo: true } });
+    assert(demoBAfterFail > 0, 'Demo data for Tenant B preserved after failed payment webhook');
+
+    // 14.5 Successful payment webhook activates correct subscription & purges demo data
+    const succWebhookEventId = `evt_succ_${Date.now()}`;
+    const succPaymentId = `pay_webhook_succ_${Date.now()}`;
+    const succEventPayload = JSON.stringify({
+      entity: 'event',
+      id: succWebhookEventId,
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: {
+            id: succPaymentId,
+            order_id: 'order_webhook_001',
+            status: 'captured',
+            amount: 599900,
+            currency: 'INR',
+            notes: {
+              tenantId: tenantB.id,
+              plan: 'ENTERPRISE'
+            }
+          }
+        }
+      }
+    });
+    const succWebhookSig = RazorpayService.generateWebhookSignature(succEventPayload);
+    const succWebhookRes = await fetch(`${API_BASE}/subscriptions/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': succWebhookSig
+      },
+      body: succEventPayload
+    });
+    assert(succWebhookRes.status === 200, 'POST /subscriptions/webhook returns 200 on valid signature');
+
+    // Verify Tenant B subscription activated to ENTERPRISE
+    const subBActive = await prisma.subscription.findUnique({ where: { tenantId: tenantB.id } });
+    assert(subBActive?.status === SubscriptionStatus.ACTIVE, 'Tenant B subscription is ACTIVE via webhook');
+    assert(subBActive?.planName === 'ENTERPRISE', 'Tenant B plan is ENTERPRISE');
+    assert(subBActive?.providerSubscriptionId === succPaymentId, 'Provider payment ID stored correctly');
+
+    // Demo data for Tenant B purged
+    const demoBAfterSucc = await prisma.customer.count({ where: { tenantId: tenantB.id, isDemo: true } });
+    assert(demoBAfterSucc === 0, 'Tenant B demo data purged after successful webhook activation');
+
+    // Real customer B preserved
+    const realCustomerCheckB = await prisma.customer.findUnique({ where: { id: realCustomerB.id } });
+    assert(!!realCustomerCheckB, 'Tenant B real customer preserved after webhook activation');
+
+    // 14.6 Duplicate webhook event does not activate twice (Idempotency)
+    const dupWebhookRes = await fetch(`${API_BASE}/subscriptions/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': succWebhookSig
+      },
+      body: succEventPayload
+    });
+    const dupWebhookData: any = await dupWebhookRes.json();
+    assert(dupWebhookRes.status === 200 && dupWebhookData.idempotent === true, 'Duplicate webhook event is idempotent (does not activate twice)');
+
 
   } catch (err: any) {
     console.error('Test Suite encountered fatal exception:', err.message);

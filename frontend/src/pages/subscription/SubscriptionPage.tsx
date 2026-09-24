@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Crown
 } from 'lucide-react';
+import { loadRazorpayScript } from '../../utils/razorpay';
 
 interface PlanDefinition {
   name: string;
@@ -100,6 +101,9 @@ export const SubscriptionPage: React.FC = () => {
   const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>('PROFESSIONAL');
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const isExpiredQuery = searchParams.get('expired') === 'true';
   const isDevMode = import.meta.env.DEV;
@@ -108,11 +112,109 @@ export const SubscriptionPage: React.FC = () => {
     refreshTenant();
   }, []);
 
-  const handleSelectPlan = (plan: PlanDefinition) => {
+  const handleInitiateCheckout = async (plan: PlanDefinition) => {
+    // Prevent duplicate clicks while payment is in flight
+    if (processingPlan) return;
+
     setSelectedPlan(plan.name);
-    setInfoNotice(
-      `Selected ${plan.displayName}. Real payment gateway integration (Razorpay/Stripe) is scheduled for the next release. In development, you can use the Dev Simulator below to activate this plan immediately.`
-    );
+    setPaymentError(null);
+    setPaymentSuccess(null);
+    setInfoNotice(null);
+    setProcessingPlan(plan.name);
+
+    try {
+      // 1. Call POST /api/v1/subscriptions/checkout (never sending amount from frontend)
+      const checkoutRes = await api.post('/subscriptions/checkout', {
+        plan: plan.name
+      });
+
+      if (!checkoutRes.data?.success || !checkoutRes.data?.data) {
+        throw new Error(checkoutRes.data?.error?.message || 'Failed to initialize subscription checkout');
+      }
+
+      // 2. Read parameters strictly from backend response
+      const { orderId, amount, currency, keyId } = checkoutRes.data.data;
+
+      // 3. Load Razorpay Checkout SDK via reusable loader
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
+        throw new Error('Razorpay Checkout SDK failed to load. Please verify your internet connection and try again.');
+      }
+
+      // 4. Configure and open Razorpay modal using backend-supplied values only
+      const options = {
+        key: keyId,
+        amount,
+        currency,
+        order_id: orderId,
+        name: tenant?.name || 'Tailor Management System',
+        description: `${plan.displayName} Subscription (${plan.period})`,
+        prefill: {
+          name: user?.name,
+          email: user?.email,
+          contact: tenant?.phone
+        },
+        theme: {
+          color: '#2563eb'
+        },
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          try {
+            setProcessingPlan(plan.name);
+            setPaymentError(null);
+
+            // 5. On payment completion, call backend verify-payment endpoint
+            const verifyRes = await api.post('/subscriptions/verify-payment', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan: plan.name
+            });
+
+            if (verifyRes.data?.success) {
+              // 7. Refresh subscription info and show success
+              setPaymentSuccess(`Payment verified successfully! Your atelier is now active on the ${plan.displayName} tier.`);
+              await refreshTenant();
+            } else {
+              setPaymentError(verifyRes.data?.error?.message || 'Payment verification failed on the server.');
+            }
+          } catch (verifyErr: any) {
+            setPaymentError(
+              verifyErr.response?.data?.error?.message ||
+              verifyErr.message ||
+              'Payment verification failed. Please contact support if your account was debited.'
+            );
+          } finally {
+            setProcessingPlan(null);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            // 8. User closed or cancelled modal
+            setProcessingPlan(null);
+            setPaymentError('Checkout window was closed. Payment was cancelled.');
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (failureResponse: any) => {
+        setProcessingPlan(null);
+        setPaymentError(failureResponse.error?.description || 'Payment was declined or failed.');
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      setProcessingPlan(null);
+      setPaymentError(
+        err.response?.data?.error?.message ||
+        err.message ||
+        'Unable to initialize checkout. Please try again.'
+      );
+    }
+  };
+
+  const handleSelectPlan = (plan: PlanDefinition) => {
+    handleInitiateCheckout(plan);
   };
 
   const handleDevSimulate = async (status: 'TRIAL' | 'EXPIRED' | 'ACTIVE', planName?: string) => {
@@ -250,6 +352,28 @@ export const SubscriptionPage: React.FC = () => {
         </div>
       )}
 
+      {/* Payment Success Alert */}
+      {paymentSuccess && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-800 flex items-start gap-2.5 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-emerald-900">Payment Verified</p>
+            <p className="mt-0.5 text-emerald-700">{paymentSuccess}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Error / Cancellation Alert */}
+      {paymentError && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800 flex items-start gap-2.5 shadow-xs">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-rose-900">Payment Notice</p>
+            <p className="mt-0.5 text-rose-700">{paymentError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Plan Tiers Grid */}
       <div className="space-y-4">
         <div>
@@ -323,14 +447,35 @@ export const SubscriptionPage: React.FC = () => {
                 <div className="mt-6 pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => handleSelectPlan(plan)}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
-                      isSelected
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 hover:bg-blue-700'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    disabled={isCurrent || !!processingPlan}
+                    onClick={() => handleInitiateCheckout(plan)}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      isCurrent
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
+                        : processingPlan === plan.name
+                          ? 'bg-blue-500 text-white cursor-wait opacity-90'
+                          : processingPlan
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                            : isSelected || plan.popular
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 hover:bg-blue-700'
+                              : 'bg-slate-900 text-white hover:bg-slate-800'
                     }`}
                   >
-                    {isCurrent ? 'Current Tier' : isSelected ? 'Selected Tier' : 'Select Plan'}
+                    {isCurrent ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Active Tier</span>
+                      </>
+                    ) : processingPlan === plan.name ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Processing Checkout...</span>
+                      </>
+                    ) : isSubscriptionExpired ? (
+                      <span>Renew {plan.displayName}</span>
+                    ) : (
+                      <span>Upgrade to {plan.displayName}</span>
+                    )}
                   </button>
                 </div>
               </div>

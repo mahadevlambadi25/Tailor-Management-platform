@@ -15,7 +15,10 @@ export const config = {
   defaultTenantSlug: process.env.DEFAULT_TENANT_SLUG || 'royal-bespoke',
   otpExpiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10),
   otpMaxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10),
-  trialDurationDays: parseInt(process.env.TRIAL_DURATION_DAYS || '14', 10)
+  trialDurationDays: parseInt(process.env.TRIAL_DURATION_DAYS || '14', 10),
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret'
 };
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
