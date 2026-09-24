@@ -85,6 +85,8 @@ app.get('/', healthHandler);
 
 // Mount /api/v1/ Domain Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/v1/tenants', tenantsRoutes);
 app.use('/api/v1/subscriptions', subscriptionsRoutes);
 app.use('/api/v1/branches', branchesRoutes);
@@ -105,6 +107,17 @@ app.use('/api/v1/documents', documentsRoutes);
 app.use('/api/v1/portal', customerPortalRoutes);
 app.use('/api/v1/customer-portal', customerPortalRoutes);
 app.use('/api/v1/import-export', importExportRoutes);
+
+// Catch-all 404 Handler for Unmatched Routes
+app.use((req: express.Request, res: express.Response) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      message: `Route ${req.method} ${req.originalUrl} not found`,
+      code: 'ROUTE_NOT_FOUND'
+    }
+  });
+});
 
 // Centralized Error Handler
 app.use(errorHandler);

@@ -11,7 +11,7 @@ export class AuthController {
   static async staffLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
-      const tenantId = req.tenantId!;
+      let tenantId = req.tenantId;
 
       if (!email || !password) {
         return res.status(400).json({
@@ -20,18 +20,45 @@ export class AuthController {
         });
       }
 
-      const user = await prisma.user.findFirst({
-        where: {
-          tenantId,
-          email: email.toLowerCase().trim()
-        },
-        include: { branch: true, tenant: true }
-      });
+      // Check if client explicitly supplied a tenant slug in body or header
+      const hasExplicitSlug = !!(req.body?.tenantSlug || req.headers['x-tenant-slug']);
+
+      let user = null;
+      if (tenantId) {
+        user = await prisma.user.findFirst({
+          where: {
+            tenantId,
+            email: email.toLowerCase().trim()
+          },
+          include: { branch: true, tenant: true }
+        });
+      }
+
+      // If user was not found under the fallback tenant and no explicit slug was provided,
+      // allow resolving tenant automatically by user's email
+      if (!user && !hasExplicitSlug) {
+        user = await prisma.user.findFirst({
+          where: {
+            email: email.toLowerCase().trim()
+          },
+          include: { branch: true, tenant: true }
+        });
+        if (user) {
+          tenantId = user.tenantId;
+        }
+      }
 
       if (!user) {
         return res.status(401).json({
           success: false,
           error: { message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' }
+        });
+      }
+
+      if (!user.tenant.isActive) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Tenant subscription is inactive or suspended', code: 'TENANT_INACTIVE' }
         });
       }
 
@@ -59,7 +86,7 @@ export class AuthController {
       // Audit log
       await prisma.auditLog.create({
         data: {
-          tenantId,
+          tenantId: user.tenantId,
           userId: user.id,
           action: 'STAFF_LOGIN',
           entity: 'User',

@@ -6,7 +6,9 @@ const resolveApiBaseUrl = (): string => {
     return '/api/v1';
   }
   const cleanUrl = envUrl.trim().replace(/\/+$/, '');
-  return cleanUrl.endsWith('/api/v1') ? cleanUrl : `${cleanUrl}/api/v1`;
+  if (cleanUrl.endsWith('/api/v1')) return cleanUrl;
+  if (cleanUrl.endsWith('/api')) return `${cleanUrl}/v1`;
+  return `${cleanUrl}/api/v1`;
 };
 
 export const API_BASE_URL = resolveApiBaseUrl();
