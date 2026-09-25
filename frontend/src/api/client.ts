@@ -29,7 +29,9 @@ api.interceptors.request.use((req) => {
   }
 
   // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage
-  if (!req.headers['x-tenant-slug']) {
+  if (req.headers['x-tenant-slug'] === '') {
+    delete req.headers['x-tenant-slug'];
+  } else if (!req.headers['x-tenant-slug']) {
     req.headers['x-tenant-slug'] = storedSlug;
   }
 
@@ -43,7 +45,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       const isAuthUrl = err.config?.url?.includes('/auth/');
-      const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/portal/login';
+      const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register' || window.location.pathname === '/portal/login';
 
       if (!isAuthUrl && !isAuthPage && !isRedirecting) {
         isRedirecting = true;

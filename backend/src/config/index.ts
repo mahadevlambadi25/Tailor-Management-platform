@@ -18,7 +18,11 @@ export const config = {
   trialDurationDays: parseInt(process.env.TRIAL_DURATION_DAYS || '14', 10),
   razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
-  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret'
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/v1/auth/google/callback',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
 };
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {

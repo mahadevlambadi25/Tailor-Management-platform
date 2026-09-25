@@ -44,7 +44,8 @@ export function App() {
             <OfflineSyncProvider>
               <Routes>
                 {/* Public Auth Routes */}
-                <Route path="/login" element={<LoginPage />} />
+                <Route path="/login" element={<LoginPage initialMode="login" />} />
+                <Route path="/register" element={<LoginPage initialMode="register" />} />
                 <Route path="/portal/login" element={<CustomerOtpPage />} />
 
                 {/* Customer Facing Portal */}

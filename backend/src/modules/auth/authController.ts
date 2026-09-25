@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -5,6 +6,8 @@ import { prisma } from '../../core/prisma';
 import { config, ROLE_PERMISSIONS } from '../../config';
 import { notificationService } from '../notifications/notificationService';
 import { NotificationChannel, RoleType } from '@prisma/client';
+import { GoogleAuthService } from './googleAuthService';
+import { SubscriptionService } from '../subscriptions/subscriptionService';
 
 export class AuthController {
   // Staff Login
@@ -122,6 +125,146 @@ export class AuthController {
             tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug }
           },
           permissions: ROLE_PERMISSIONS[user.role] || []
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // Staff / Atelier Owner Registration
+  static async staffRegister(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name, email, password, confirmPassword } = req.body;
+
+      if (!name || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Name, email, and password are required', code: 'MISSING_FIELDS' }
+        });
+      }
+
+      if (confirmPassword && password !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Passwords do not match', code: 'PASSWORD_MISMATCH' }
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Password must be at least 6 characters long', code: 'PASSWORD_TOO_SHORT' }
+        });
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findFirst({
+        where: { email: normalizedEmail }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'An account with this email already exists. Please sign in instead.', code: 'EMAIL_ALREADY_EXISTS' }
+        });
+      }
+
+      // Provision new Tenant, Branch, Subscription, and Shop Owner User
+      const rawName = name.trim();
+      const slugBase = rawName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'atelier';
+      const uniqueSuffix = crypto.randomBytes(3).toString('hex');
+      const newSlug = `${slugBase}-${uniqueSuffix}`;
+
+      const newTenant = await prisma.tenant.create({
+        data: {
+          name: `${rawName}'s Atelier`,
+          slug: newSlug,
+          phone: '+91 9999999999',
+          email: normalizedEmail,
+          currency: 'INR',
+          isDemo: false,
+          isActive: true
+        }
+      });
+
+      const mainBranch = await prisma.branch.create({
+        data: {
+          tenantId: newTenant.id,
+          name: 'Main Workshop',
+          code: 'HQ-01',
+          isMain: true,
+          isActive: true
+        }
+      });
+
+      // Initialize unused-trial subscription (PENDING, trialUsed: false)
+      await SubscriptionService.createInitialSubscription(newTenant.id);
+
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      const newUser = await prisma.user.create({
+        data: {
+          tenantId: newTenant.id,
+          branchId: mainBranch.id,
+          name: rawName,
+          email: normalizedEmail,
+          role: RoleType.SHOP_OWNER,
+          passwordHash,
+          isActive: true,
+          lastLoginAt: new Date()
+        },
+        include: {
+          branch: true,
+          tenant: true
+        }
+      });
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          tenantId: newTenant.id,
+          userId: newUser.id,
+          action: 'STAFF_REGISTER',
+          entity: 'User',
+          entityId: newUser.id,
+          ipAddress: req.ip
+        }
+      });
+
+      // Create JWT
+      const token = jwt.sign(
+        {
+          id: newUser.id,
+          tenantId: newUser.tenantId,
+          branchId: newUser.branchId,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role
+        },
+        config.jwtSecret,
+        { expiresIn: '1d' }
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          token,
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            role: newUser.role,
+            branch: { id: mainBranch.id, name: mainBranch.name },
+            tenant: { id: newTenant.id, name: newTenant.name, slug: newTenant.slug }
+          },
+          permissions: ROLE_PERMISSIONS[newUser.role] || []
         }
       });
     } catch (err) {
@@ -371,6 +514,105 @@ export class AuthController {
       });
     } catch (err) {
       next(err);
+    }
+  }
+
+  // Initiate Google OAuth Redirect
+  static async googleRedirect(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!config.googleClientId) {
+        if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
+          return res.status(503).json({
+            success: false,
+            error: {
+              message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.',
+              code: 'GOOGLE_OAUTH_NOT_CONFIGURED'
+            }
+          });
+        }
+        return res.redirect(`${config.frontendUrl}/login?error=GOOGLE_OAUTH_NOT_CONFIGURED`);
+      }
+
+      // Preserve tenantSlug in state if provided
+      const tenantSlug = (req.query.tenantSlug as string) || (req.headers['x-tenant-slug'] as string) || '';
+      const stateObj = { tenantSlug, timestamp: Date.now() };
+      const state = Buffer.from(JSON.stringify(stateObj)).toString('base64');
+
+      const authUrl = GoogleAuthService.generateGoogleAuthUrl(state);
+      return res.redirect(authUrl);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // Google OAuth Callback
+  static async googleCallback(req: Request, res: Response, _next: NextFunction) {
+    try {
+      const { code, state, error: oauthError } = req.query;
+
+      if (oauthError) {
+        return res.redirect(`${config.frontendUrl}/login?error=${encodeURIComponent(String(oauthError))}`);
+      }
+
+      if (!code || typeof code !== 'string') {
+        return res.redirect(`${config.frontendUrl}/login?error=MISSING_OAUTH_CODE`);
+      }
+
+      // Parse state
+      let tenantSlug: string | undefined;
+      if (state && typeof state === 'string') {
+        try {
+          const parsedState = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+          tenantSlug = parsedState.tenantSlug;
+        } catch {
+          // ignore state parse errors
+        }
+      }
+
+      // Exchange code for tokens
+      const tokens = await GoogleAuthService.exchangeCodeForTokens(code);
+
+      // Verify and extract profile
+      const profile = await GoogleAuthService.getGoogleProfile(tokens.id_token, tokens.access_token);
+
+      // Authenticate or safely register user
+      const result = await GoogleAuthService.authenticateOrRegisterGoogleUser(profile, tenantSlug);
+
+      // Redirect back to frontend with token
+      const redirectUrl = `${config.frontendUrl}/login?token=${encodeURIComponent(result.token)}&slug=${encodeURIComponent(result.user.tenant.slug)}`;
+      return res.redirect(redirectUrl);
+    } catch (err: any) {
+      const message = err.message || 'Google authentication failed';
+      return res.redirect(`${config.frontendUrl}/login?error=${encodeURIComponent(message)}`);
+    }
+  }
+
+  // Direct Google ID Token / Credential Verification
+  static async googleTokenLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { credential, idToken, accessToken, tenantSlug } = req.body;
+      const tokenToVerify = credential || idToken;
+
+      if (!tokenToVerify && !accessToken) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Google credential or token is required', code: 'MISSING_CREDENTIALS' }
+        });
+      }
+
+      const profile = await GoogleAuthService.getGoogleProfile(tokenToVerify, accessToken);
+      const result = await GoogleAuthService.authenticateOrRegisterGoogleUser(profile, tenantSlug);
+
+      return res.json({
+        success: true,
+        data: result
+      });
+    } catch (err: any) {
+      const statusCode = err.statusCode || (err.code === 'TENANT_INACTIVE' || err.code === 'ACCOUNT_DEACTIVATED' ? 403 : 400);
+      return res.status(statusCode).json({
+        success: false,
+        error: { message: err.message || 'Google authentication failed', code: err.code || 'GOOGLE_AUTH_FAILED' }
+      });
     }
   }
 }
