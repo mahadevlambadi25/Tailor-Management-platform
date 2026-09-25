@@ -324,6 +324,41 @@ export class SubscriptionsController {
   }
 
   /**
+   * Starts the 14-day free trial for the authenticated tenant.
+   * - Enforces one-time trial limit (rejects second trial attempt with TRIAL_ALREADY_USED).
+   * - Server calculates 14 days duration from current server time.
+   * - Idempotently purges demo data for this tenant only.
+   * - Preserves all real customer/business data.
+   */
+  static async startTrial(req: Request, res: Response, next: NextFunction) {
+    try {
+      const tenantId = req.tenantId!;
+
+      const { subscription, purgeResult } = await SubscriptionService.startTrial(tenantId);
+      const summary = await SubscriptionService.getSubscriptionSummary(tenantId);
+
+      return res.status(200).json({
+        success: true,
+        message: '14-Day Free Trial activated successfully. Demo data has been purged.',
+        data: {
+          subscription: summary,
+          purgeResult
+        }
+      });
+    } catch (err: any) {
+      if (err.code === 'TRIAL_ALREADY_USED') {
+        return res.status(400).json({
+          success: false,
+          error: 'TRIAL_ALREADY_USED',
+          code: 'TRIAL_ALREADY_USED',
+          message: err.message || 'Free trial has already been used for this atelier. Please choose a paid subscription plan.'
+        });
+      }
+      next(err);
+    }
+  }
+
+  /**
    * Retrieves sanitized subscription details and trial countdown for the current tenant.
    */
   static async getCurrentSubscription(req: Request, res: Response, next: NextFunction) {

@@ -58,6 +58,7 @@ model Subscription {
   tenantId               String             @unique
   planName               String             @default("FREE_TRIAL")
   status                 SubscriptionStatus @default(TRIAL)
+  trialUsed              Boolean            @default(false)
   maxOrdersPerMonth      Int                @default(1000)
   maxStaff               Int                @default(50)
   maxBranches            Int                @default(5)
@@ -79,6 +80,7 @@ model Subscription {
   tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([trialUsed])
   @@map("subscriptions")
 }
 

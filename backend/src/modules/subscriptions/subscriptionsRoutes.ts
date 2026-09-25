@@ -19,6 +19,9 @@ router.use(tenantContext, authGuard);
 
 router.get('/current', SubscriptionsController.getCurrentSubscription);
 
+// Start 14-day free trial (Shop Owner only, one-time enforcement)
+router.post('/start-trial', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.startTrial);
+
 // Razorpay checkout order creation
 router.post('/checkout', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.checkout);
 

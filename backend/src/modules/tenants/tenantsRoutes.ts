@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { TenantsController } from './tenantsController';
+import { SubscriptionsController } from '../subscriptions/subscriptionsController';
 import { tenantContext } from '../../middleware/tenantContext';
 import { authGuard } from '../../middleware/authGuard';
 import { requireRoles } from '../../middleware/rbacGuard';
@@ -16,6 +17,7 @@ router.post('/demo-data/load', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGE
 router.post('/demo-data/clear', requireRoles(RoleType.SHOP_OWNER), TenantsController.clearDemoData);
 
 // Payment-safe subscription lifecycle endpoints
+router.post('/subscription/start-trial', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.startTrial);
 router.post('/subscription/checkout', requireRoles(RoleType.SHOP_OWNER), TenantsController.checkoutSubscription);
 router.post('/subscription/cancel', requireRoles(RoleType.SHOP_OWNER), TenantsController.cancelSubscription);
 router.post('/subscription/fail', requireRoles(RoleType.SHOP_OWNER), TenantsController.failSubscription);

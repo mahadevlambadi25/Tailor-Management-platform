@@ -106,8 +106,11 @@ export class SubscriptionService {
         tenantId,
         planName: planConfig.name,
         status: SubscriptionStatus.TRIAL,
+        trialUsed: true,
         trialStart: now,
         trialEnd,
+        currentPeriodStart: now,
+        currentPeriodEnd: trialEnd,
         startDate: now,
         endDate: trialEnd,
         maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
@@ -115,6 +118,135 @@ export class SubscriptionService {
         maxBranches: planConfig.maxBranches
       }
     });
+  }
+
+  /**
+   * Creates an initial unused-trial subscription record for a brand-new tenant.
+   * trialUsed = false, trialStart = null, trialEnd = null.
+   */
+  static async createInitialSubscription(tenantId: string) {
+    const planConfig = SUBSCRIPTION_PLANS.FREE_TRIAL;
+    return prisma.subscription.create({
+      data: {
+        tenantId,
+        planName: planConfig.name,
+        status: SubscriptionStatus.PENDING,
+        trialUsed: false,
+        trialStart: null,
+        trialEnd: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
+        maxStaff: planConfig.maxStaff,
+        maxBranches: planConfig.maxBranches
+      }
+    });
+  }
+
+  /**
+   * Evaluates if a tenant is eligible to start a 14-day free trial.
+   * Strict one-time rule:
+   * A tenant is ineligible if:
+   * - trialUsed is true
+   * - status is TRIAL, ACTIVE, EXPIRED, CANCELLED, or PAST_DUE
+   * - has already had trialStart populated
+   * - has had any paid subscription
+   */
+  static isTrialEligible(sub: any): boolean {
+    if (!sub) return true;
+    if (sub.trialUsed === true) return false;
+    if (sub.status === SubscriptionStatus.TRIAL) return false;
+    if (sub.status === SubscriptionStatus.ACTIVE) return false;
+    if (sub.status === SubscriptionStatus.EXPIRED) return false;
+    if (sub.status === SubscriptionStatus.CANCELLED) return false;
+    if (sub.status === SubscriptionStatus.PAST_DUE) return false;
+    if (sub.trialStart !== null && sub.trialStart !== undefined) return false;
+    if (sub.planName && sub.planName !== 'FREE_TRIAL') return false;
+    return true;
+  }
+
+  /**
+   * Starts the 14-day free trial for a brand-new tenant:
+   * - Enforces one-time trial rule server-side; throws TRIAL_ALREADY_USED if already consumed.
+   * - Calculates trialStart (now) and trialEnd (now + 14 days) strictly on the server.
+   * - Sets status = TRIAL, plan = FREE_TRIAL, trialUsed = true.
+   * - Transactionally activates the trial and executes idempotent purgeTenantDemoData.
+   * - Preserves all real customer/business data, staff, tenant, subscription.
+   */
+  static async startTrial(tenantId: string) {
+    let sub = await prisma.subscription.findUnique({
+      where: { tenantId }
+    });
+
+    if (sub) {
+      sub = await this.resolveExpiration(sub);
+      if (!this.isTrialEligible(sub)) {
+        const error: any = new Error('Free trial has already been used for this atelier. Please choose a paid subscription plan.');
+        error.code = 'TRIAL_ALREADY_USED';
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    const now = new Date();
+    const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const planConfig = SUBSCRIPTION_PLANS.FREE_TRIAL;
+
+    const subscription = await prisma.subscription.upsert({
+      where: { tenantId },
+      update: {
+        planName: planConfig.name,
+        status: SubscriptionStatus.TRIAL,
+        trialUsed: true,
+        trialStart: now,
+        trialEnd,
+        currentPeriodStart: now,
+        currentPeriodEnd: trialEnd,
+        startDate: now,
+        endDate: trialEnd,
+        maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
+        maxStaff: planConfig.maxStaff,
+        maxBranches: planConfig.maxBranches
+      },
+      create: {
+        tenantId,
+        planName: planConfig.name,
+        status: SubscriptionStatus.TRIAL,
+        trialUsed: true,
+        trialStart: now,
+        trialEnd,
+        currentPeriodStart: now,
+        currentPeriodEnd: trialEnd,
+        startDate: now,
+        endDate: trialEnd,
+        maxOrdersPerMonth: planConfig.maxOrdersPerMonth,
+        maxStaff: planConfig.maxStaff,
+        maxBranches: planConfig.maxBranches
+      }
+    });
+
+    // Transactionally & idempotently purge ONLY demo data belonging to this tenant
+    const purgeResult = await purgeTenantDemoData(tenantId);
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        tenantId,
+        action: 'TRIAL_STARTED',
+        entity: 'Subscription',
+        entityId: subscription.id,
+        details: {
+          planName: planConfig.name,
+          status: SubscriptionStatus.TRIAL,
+          trialStart: now.toISOString(),
+          trialEnd: trialEnd.toISOString(),
+          trialUsed: true,
+          ...purgeResult
+        }
+      }
+    }).catch((err) => logger.error('[SubscriptionService] Failed to record trial activation audit log', err));
+
+    return { subscription, purgeResult };
   }
 
   /**
@@ -130,7 +262,10 @@ export class SubscriptionService {
         
         const updated = await prisma.subscription.update({
           where: { id: subscription.id },
-          data: { status: SubscriptionStatus.EXPIRED }
+          data: {
+            status: SubscriptionStatus.EXPIRED,
+            trialUsed: true
+          }
         });
 
         // Audit Log
@@ -144,6 +279,7 @@ export class SubscriptionService {
               previousStatus: SubscriptionStatus.TRIAL,
               newStatus: SubscriptionStatus.EXPIRED,
               expiredAt: now.toISOString(),
+              trialUsed: true,
               demoDataPreserved: true
             }
           }
@@ -169,7 +305,7 @@ export class SubscriptionService {
     if (!sub) return false;
     if (sub.status === SubscriptionStatus.ACTIVE) return true;
     if (sub.status === SubscriptionStatus.TRIAL) {
-      if (!sub.trialEnd) return true;
+      if (!sub.trialEnd || !sub.trialStart) return false;
       return new Date() <= new Date(sub.trialEnd);
     }
     return false;
@@ -195,6 +331,7 @@ export class SubscriptionService {
       update: {
         planName: planConfig.name,
         status: SubscriptionStatus.ACTIVE,
+        trialUsed: true,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
         startDate: now,
@@ -210,6 +347,7 @@ export class SubscriptionService {
         tenantId,
         planName: planConfig.name,
         status: SubscriptionStatus.ACTIVE,
+        trialUsed: true,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
         startDate: now,
@@ -240,6 +378,7 @@ export class SubscriptionService {
           status: SubscriptionStatus.ACTIVE,
           paymentId: options?.paymentId,
           paymentProvider: options?.paymentProvider || 'razorpay',
+          trialUsed: true,
           demoPurged: options?.clearDemo ?? false
         }
       }
@@ -262,14 +401,18 @@ export class SubscriptionService {
     }
 
     const isActive = this.isSubscriptionActive(sub);
-    const isTrial = sub.status === SubscriptionStatus.TRIAL;
+    const isTrial = sub.status === SubscriptionStatus.TRIAL && !!sub.trialStart;
     const isExpired = sub.status === SubscriptionStatus.EXPIRED;
+    const trialUsed = sub.trialUsed ?? false;
+    const isTrialEligible = this.isTrialEligible(sub);
 
     return {
       id: sub.id,
       tenantId: sub.tenantId,
       planName: sub.planName,
       status: sub.status,
+      trialUsed,
+      isTrialEligible,
       trialStart: sub.trialStart,
       trialEnd: sub.trialEnd,
       currentPeriodStart: sub.currentPeriodStart,
@@ -301,12 +444,19 @@ export class SubscriptionService {
       // Simulate trialEnd expired yesterday
       dataToUpdate.trialStart = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
       dataToUpdate.trialEnd = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      dataToUpdate.trialUsed = true;
     } else if (status === SubscriptionStatus.TRIAL) {
       dataToUpdate.trialStart = now;
       dataToUpdate.trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      dataToUpdate.trialUsed = true;
     } else if (status === SubscriptionStatus.ACTIVE) {
       dataToUpdate.currentPeriodStart = now;
       dataToUpdate.currentPeriodEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      dataToUpdate.trialUsed = true;
+    } else if (status === SubscriptionStatus.PENDING) {
+      dataToUpdate.trialStart = null;
+      dataToUpdate.trialEnd = null;
+      dataToUpdate.trialUsed = false;
     }
 
     return prisma.subscription.update({

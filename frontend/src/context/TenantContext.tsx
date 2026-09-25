@@ -6,6 +6,8 @@ export interface SubscriptionDetails {
   tenantId?: string;
   planName: string;
   status: 'TRIAL' | 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PAST_DUE' | string;
+  trialUsed?: boolean;
+  isTrialEligible?: boolean;
   trialStart?: string | null;
   trialEnd?: string | null;
   currentPeriodStart?: string | null;
@@ -52,6 +54,7 @@ interface TenantContextType {
   trialDaysRemaining: number;
   refreshTenant: () => Promise<void>;
   isFeatureEnabled: (key: string) => boolean;
+  startTrial: () => Promise<{ success: boolean; data?: any; error?: any }>;
 }
 
 const TenantContext = createContext<TenantContextType>({} as TenantContextType);
@@ -105,6 +108,20 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     trialDaysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }
 
+  const startTrial = async (): Promise<{ success: boolean; data?: any; error?: any }> => {
+    try {
+      const res = await api.post('/subscriptions/start-trial');
+      if (res.data.success) {
+        await fetchTenant();
+        return { success: true, data: res.data.data };
+      }
+      return { success: false, error: res.data.error || 'Failed to start trial' };
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to start trial';
+      return { success: false, error: errMsg };
+    }
+  };
+
   return (
     <TenantContext.Provider
       value={{
@@ -118,7 +135,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isTrial,
         trialDaysRemaining,
         refreshTenant: fetchTenant,
-        isFeatureEnabled
+        isFeatureEnabled,
+        startTrial
       }}
     >
       {children}

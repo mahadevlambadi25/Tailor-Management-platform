@@ -94,10 +94,11 @@ const PLANS: PlanDefinition[] = [
 ];
 
 export const SubscriptionPage: React.FC = () => {
-  const { tenant, subscription, refreshTenant, trialDaysRemaining, isSubscriptionActive, isSubscriptionExpired, isTrial } = useTenant();
+  const { tenant, subscription, refreshTenant, trialDaysRemaining, isSubscriptionActive, isSubscriptionExpired, isTrial, startTrial } = useTenant();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
   const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>('PROFESSIONAL');
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
@@ -111,6 +112,49 @@ export const SubscriptionPage: React.FC = () => {
   useEffect(() => {
     refreshTenant();
   }, []);
+
+  // UI State Mapping
+  const trialUsed = subscription?.trialUsed === true;
+  const isPaidPlan = !!subscription?.planName && subscription.planName !== 'FREE_TRIAL';
+
+  // State A: New Tenant / Trial Not Used
+  const isStateA = !trialUsed && subscription?.status !== 'ACTIVE' && subscription?.status !== 'TRIAL';
+
+  // State B: Trial Active
+  const isStateB = !isStateA && subscription?.status === 'TRIAL' && isSubscriptionActive;
+
+  // State C: Trial Expired
+  const isStateC = !isStateA && !isStateB && (isSubscriptionExpired || subscription?.status === 'TRIAL') && !isPaidPlan;
+
+  // State D: Paid Subscription Active
+  const isStateD = subscription?.status === 'ACTIVE' && isPaidPlan;
+
+  // State E: Paid Subscription Expired / Cancelled / Past Due
+  const isStateE = !isStateA && !isStateB && !isStateC && !isStateD;
+
+  const scrollToPlans = () => {
+    document.getElementById('pricing-plans')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleStartTrial = async () => {
+    if (isStartingTrial) return;
+    try {
+      setIsStartingTrial(true);
+      setPaymentError(null);
+      setPaymentSuccess(null);
+      const res = await startTrial();
+      if (res.success) {
+        setPaymentSuccess('14-Day Free Trial activated successfully! Demo data has been purged.');
+        await refreshTenant();
+      } else {
+        setPaymentError(res.error || 'Failed to start free trial.');
+      }
+    } catch (err: any) {
+      setPaymentError(err.message || 'Failed to start free trial.');
+    } finally {
+      setIsStartingTrial(false);
+    }
+  };
 
   const handleInitiateCheckout = async (plan: PlanDefinition) => {
     // Prevent duplicate clicks while payment is in flight
@@ -217,7 +261,7 @@ export const SubscriptionPage: React.FC = () => {
     handleInitiateCheckout(plan);
   };
 
-  const handleDevSimulate = async (status: 'TRIAL' | 'EXPIRED' | 'ACTIVE', planName?: string) => {
+  const handleDevSimulate = async (status: 'TRIAL' | 'EXPIRED' | 'ACTIVE' | 'PENDING', planName?: string) => {
     try {
       setIsSimulating(true);
       setSimulationMessage(null);
@@ -275,74 +319,268 @@ export const SubscriptionPage: React.FC = () => {
         </div>
       )}
 
-      {/* Current Status Banner */}
-      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 overflow-hidden relative">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-medium text-slate-500">Current Status:</span>
-              {isSubscriptionExpired ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  EXPIRED
-                </span>
-              ) : isTrial ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  FREE TRIAL ({trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} left)
-                </span>
-              ) : isSubscriptionActive ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  ACTIVE ({subscription?.planName || 'PROFESSIONAL'})
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800">
-                  {subscription?.status || 'PENDING'}
-                </span>
-              )}
-            </div>
-
-            <div className="text-lg font-bold text-slate-900">
-              {subscription?.planName || 'FREE_TRIAL'} Tier
-            </div>
-
-            <div className="text-xs text-slate-500 space-y-0.5">
-              {subscription?.trialEnd && (
-                <p>
-                  Trial Window: {new Date(subscription.trialStart || Date.now()).toLocaleDateString()} &mdash; {new Date(subscription.trialEnd).toLocaleDateString()}
-                </p>
-              )}
-              {subscription?.currentPeriodEnd && (
-                <p>
-                  Active Period End: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-slate-200 pt-4 md:pt-0 md:pl-6 text-center">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">Monthly Orders</div>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {subscription?.maxOrdersPerMonth || 1000}
+      {/* STATE A: NEW TENANT / TRIAL NOT USED */}
+      {isStateA && (
+        <div className="rounded-2xl bg-gradient-to-br from-blue-50/80 via-indigo-50/30 to-white border border-blue-200 shadow-sm p-6 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>New Atelier</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">14-Day Free Trial</h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Try TailorPro free for 14 days. Explore bespoke measurements, Kanban workflow, and client portals with zero upfront commitment.
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  id="start-free-trial-btn"
+                  disabled={isStartingTrial}
+                  onClick={handleStartTrial}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all disabled:opacity-50"
+                >
+                  {isStartingTrial ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Activating Free Trial...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>Start 14-Day Free Trial</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-            <div>
-              <div className="text-xs text-slate-500 font-medium">Max Staff</div>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {subscription?.maxStaff || 50}
+
+            <div className="w-full md:w-auto grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-blue-200 pt-4 md:pt-0 md:pl-8 text-center bg-white/70 p-4 rounded-xl border md:border-y-0 md:border-r-0">
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Monthly Orders</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxOrdersPerMonth || 100}</div>
+                <div className="text-[10px] text-slate-400">trial quota</div>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 font-medium">Max Branches</div>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {subscription?.maxBranches || 5}
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Staff</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxStaff || 5}</div>
+                <div className="text-[10px] text-slate-400">accounts</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Branches</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxBranches || 1}</div>
+                <div className="text-[10px] text-slate-400">workshop</div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* STATE B: TRIAL ACTIVE */}
+      {isStateB && (
+        <div className="rounded-2xl bg-gradient-to-br from-amber-50/80 via-amber-50/40 to-white border border-amber-200 shadow-sm p-6 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  <Clock className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
+                  <span>Free Trial Active</span>
+                </span>
+                <span className="text-xs font-bold text-amber-700">
+                  {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} remaining
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-slate-900">
+                Free Trial Active &mdash; {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} remaining
+              </h2>
+
+              <div className="text-xs text-slate-600 space-y-0.5">
+                {subscription?.trialStart && (
+                  <p>
+                    Trial started: {new Date(subscription.trialStart).toLocaleDateString()}
+                  </p>
+                )}
+                {subscription?.trialEnd && (
+                  <p className="font-semibold text-amber-900">
+                    Trial ends: {new Date(subscription.trialEnd).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  id="choose-paid-plan-btn"
+                  onClick={scrollToPlans}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all"
+                >
+                  <span>Choose a Paid Plan</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full md:w-auto grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-amber-200 pt-4 md:pt-0 md:pl-8 text-center bg-white/70 p-4 rounded-xl border md:border-y-0 md:border-r-0">
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Monthly Orders</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxOrdersPerMonth || 100}</div>
+                <div className="text-[10px] text-slate-400">trial quota</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Staff</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxStaff || 5}</div>
+                <div className="text-[10px] text-slate-400">accounts</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Branches</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxBranches || 1}</div>
+                <div className="text-[10px] text-slate-400">workshop</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STATE C: TRIAL EXPIRED */}
+      {isStateC && (
+        <div className="rounded-2xl bg-gradient-to-br from-rose-50 via-red-50/40 to-white border border-rose-200 shadow-sm p-6 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                <span>Free Trial Ended</span>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Free Trial Ended</h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Your 14-day free trial has ended. Choose a subscription to continue using business features.
+              </p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  id="view-plans-btn"
+                  onClick={scrollToPlans}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all"
+                >
+                  <span>View Plans</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full md:w-auto p-4 rounded-xl bg-white border border-rose-100 text-xs text-slate-600 space-y-1.5">
+              <div className="font-semibold text-rose-900">Trial Period Record</div>
+              {subscription?.trialStart && (
+                <div>Started: {new Date(subscription.trialStart).toLocaleDateString()}</div>
+              )}
+              {subscription?.trialEnd && (
+                <div>Ended: {new Date(subscription.trialEnd).toLocaleDateString()}</div>
+              )}
+              <div className="text-[11px] text-slate-400 pt-1">
+                Atelier data and client records are safe.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STATE D: PAID SUBSCRIPTION ACTIVE */}
+      {isStateD && (
+        <div className="rounded-2xl bg-gradient-to-br from-emerald-50/60 via-emerald-50/20 to-white border border-emerald-200 shadow-sm p-6 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>ACTIVE</span>
+                </span>
+                <span className="text-xs font-bold text-slate-600">
+                  {subscription?.planName} Tier
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-slate-900">
+                {subscription?.planName} Atelier Plan
+              </h2>
+
+              <div className="text-xs text-slate-500 space-y-0.5">
+                {subscription?.currentPeriodStart && (
+                  <p>
+                    Current Period: {new Date(subscription.currentPeriodStart).toLocaleDateString()} &mdash; {new Date(subscription.currentPeriodEnd || Date.now()).toLocaleDateString()}
+                  </p>
+                )}
+                {subscription?.currentPeriodEnd && !subscription?.currentPeriodStart && (
+                  <p>
+                    Billing Period Ends: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="w-full md:w-auto grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-emerald-200 pt-4 md:pt-0 md:pl-8 text-center bg-white/70 p-4 rounded-xl border md:border-y-0 md:border-r-0">
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Monthly Orders</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxOrdersPerMonth || 2000}</div>
+                <div className="text-[10px] text-slate-400">orders / mo</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Staff</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxStaff || 50}</div>
+                <div className="text-[10px] text-slate-400">accounts</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">Max Branches</div>
+                <div className="text-xl font-bold text-slate-900 mt-1">{subscription?.maxBranches || 5}</div>
+                <div className="text-[10px] text-slate-400">workshops</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STATE E: PAID SUBSCRIPTION EXPIRED / CANCELLED / PAST DUE */}
+      {isStateE && (
+        <div className="rounded-2xl bg-gradient-to-br from-amber-50 via-rose-50/30 to-white border border-amber-300 shadow-sm p-6 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-3 max-w-xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>{subscription?.status || 'EXPIRED'}</span>
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  Previous Tier: {subscription?.planName || 'Paid'}
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-slate-900">Subscription Inactive</h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Your {subscription?.planName || 'paid'} subscription is currently {subscription?.status?.toLowerCase() || 'inactive'}. Choose a plan to reactivate full atelier features.
+              </p>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  id="reactivate-plan-btn"
+                  onClick={scrollToPlans}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all"
+                >
+                  <span>Reactivate Subscription</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full md:w-auto p-4 rounded-xl bg-white border border-amber-200 text-xs text-slate-600 space-y-1">
+              <div className="font-semibold text-slate-900">Subscription History</div>
+              {subscription?.currentPeriodEnd && (
+                <div>Period Ended: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}</div>
+              )}
+              <div className="text-[11px] text-slate-400 pt-1">
+                Atelier records are preserved.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info Notice Banner */}
       {infoNotice && (
@@ -375,7 +613,7 @@ export const SubscriptionPage: React.FC = () => {
       )}
 
       {/* Plan Tiers Grid */}
-      <div className="space-y-4">
+      <div id="pricing-plans" className="space-y-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Available Subscription Plans</h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -471,8 +709,10 @@ export const SubscriptionPage: React.FC = () => {
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         <span>Processing Checkout...</span>
                       </>
-                    ) : isSubscriptionExpired ? (
-                      <span>Renew {plan.displayName}</span>
+                    ) : isStateE ? (
+                      <span>Reactivate with {plan.displayName}</span>
+                    ) : isStateA || isStateC ? (
+                      <span>Choose {plan.displayName}</span>
                     ) : (
                       <span>Upgrade to {plan.displayName}</span>
                     )}
@@ -519,6 +759,13 @@ export const SubscriptionPage: React.FC = () => {
           </p>
 
           <div className="flex flex-wrap gap-2.5">
+            <button
+              disabled={isSimulating}
+              onClick={() => handleDevSimulate('PENDING', 'FREE_TRIAL')}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+            >
+              Simulate New Atelier (Trial Unused)
+            </button>
             <button
               disabled={isSimulating}
               onClick={() => handleDevSimulate('TRIAL', 'FREE_TRIAL')}
