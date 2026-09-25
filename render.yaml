@@ -44,9 +44,9 @@ services:
   # ============================================================================
   # FRONTEND: Render Static Site (React + Vite + TailwindCSS)
   # ============================================================================
-  - type: static
+  - type: web
     name: tailor-management-frontend
-    plan: free
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
