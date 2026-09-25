@@ -97,9 +97,7 @@ export const SubscriptionPage: React.FC = () => {
   const { tenant, subscription, refreshTenant, trialDaysRemaining, isSubscriptionActive, isSubscriptionExpired, isTrial, startTrial } = useTenant();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [isSimulating, setIsSimulating] = useState(false);
   const [isStartingTrial, setIsStartingTrial] = useState(false);
-  const [simulationMessage, setSimulationMessage] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>('PROFESSIONAL');
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
@@ -107,7 +105,6 @@ export const SubscriptionPage: React.FC = () => {
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const isExpiredQuery = searchParams.get('expired') === 'true';
-  const isDevMode = import.meta.env.DEV;
 
   useEffect(() => {
     refreshTenant();
@@ -259,25 +256,6 @@ export const SubscriptionPage: React.FC = () => {
 
   const handleSelectPlan = (plan: PlanDefinition) => {
     handleInitiateCheckout(plan);
-  };
-
-  const handleDevSimulate = async (status: 'TRIAL' | 'EXPIRED' | 'ACTIVE' | 'PENDING', planName?: string) => {
-    try {
-      setIsSimulating(true);
-      setSimulationMessage(null);
-      const res = await api.post('/subscriptions/dev-simulate', {
-        status,
-        planName: planName || selectedPlan
-      });
-      if (res.data.success) {
-        setSimulationMessage(`Simulator updated status to ${status}!`);
-        await refreshTenant();
-      }
-    } catch (err: any) {
-      setSimulationMessage(err.response?.data?.error?.message || 'Simulation failed');
-    } finally {
-      setIsSimulating(false);
-    }
   };
 
   return (
@@ -629,11 +607,10 @@ export const SubscriptionPage: React.FC = () => {
             return (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-6 transition-all flex flex-col justify-between relative bg-white border ${
-                  plan.popular
+                className={`rounded-2xl p-6 transition-all flex flex-col justify-between relative bg-white border ${plan.popular
                     ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md'
                     : 'border-slate-200 hover:border-slate-300 shadow-sm'
-                }`}
+                  }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
@@ -687,8 +664,7 @@ export const SubscriptionPage: React.FC = () => {
                     type="button"
                     disabled={isCurrent || !!processingPlan}
                     onClick={() => handleInitiateCheckout(plan)}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      isCurrent
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${isCurrent
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
                         : processingPlan === plan.name
                           ? 'bg-blue-500 text-white cursor-wait opacity-90'
@@ -697,7 +673,7 @@ export const SubscriptionPage: React.FC = () => {
                             : isSelected || plan.popular
                               ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 hover:bg-blue-700'
                               : 'bg-slate-900 text-white hover:bg-slate-800'
-                    }`}
+                      }`}
                   >
                     {isCurrent ? (
                       <>
@@ -724,85 +700,22 @@ export const SubscriptionPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Preservation Assurance Card */}
+      {/* Data Safety Assurance Card */}
       <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 shrink-0">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-900">Your Data is 100% Preserved</h4>
+            <h4 className="text-sm font-bold text-slate-900">Your Data is Safe</h4>
             <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Trial expiration does NOT delete demo data or customer measurements. Demo records are only purged when you explicitly confirm an active paid subscription or clear them via shop settings.
+              Starting your free trial removes demo records from your workspace.
+              Your real customers, orders, measurements, and business data are preserved.
+              Demo records are not recreated after your trial expires.
             </p>
           </div>
         </div>
       </div>
-
-      {/* Developer Simulation Box (Strictly Development Only) */}
-      {isDevMode && (
-        <div className="rounded-2xl bg-slate-900 text-white p-6 shadow-xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Developer Lifecycle Simulator (Non-Production Only)
-              </h3>
-            </div>
-            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-mono">
-              DEV_SIMULATE
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-400">
-            Simulate trial expiration and renewal states to test business guard enforcement and UI responsiveness without real payment gateways.
-          </p>
-
-          <div className="flex flex-wrap gap-2.5">
-            <button
-              disabled={isSimulating}
-              onClick={() => handleDevSimulate('PENDING', 'FREE_TRIAL')}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              Simulate New Atelier (Trial Unused)
-            </button>
-            <button
-              disabled={isSimulating}
-              onClick={() => handleDevSimulate('TRIAL', 'FREE_TRIAL')}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              Simulate 14-Day Free Trial
-            </button>
-            <button
-              disabled={isSimulating}
-              onClick={() => handleDevSimulate('EXPIRED', 'FREE_TRIAL')}
-              className="px-3 py-1.5 bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              Simulate Expired Trial (Trigger 402)
-            </button>
-            <button
-              disabled={isSimulating}
-              onClick={() => handleDevSimulate('ACTIVE', 'PROFESSIONAL')}
-              className="px-3 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              Simulate Active (Professional)
-            </button>
-            <button
-              disabled={isSimulating}
-              onClick={() => handleDevSimulate('ACTIVE', 'ENTERPRISE')}
-              className="px-3 py-1.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 border border-blue-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-            >
-              Simulate Active (Enterprise)
-            </button>
-          </div>
-
-          {simulationMessage && (
-            <div className="text-xs font-mono text-amber-300 bg-slate-950/50 p-2.5 rounded-lg border border-slate-800">
-              {simulationMessage}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
