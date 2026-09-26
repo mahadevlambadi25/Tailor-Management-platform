@@ -4,6 +4,8 @@ import { subscriptionService } from '../src/modules/subscriptions/subscriptionSe
 import { RazorpayService } from '../src/modules/subscriptions/razorpayService';
 import { seedDemoDataForTenant, purgeTenantDemoData } from '../src/modules/demo/demoService';
 import { SubscriptionStatus, RoleType } from '@prisma/client';
+import { app } from '../src/app';
+import http from 'http';
 
 const API_BASE = 'http://localhost:5000/api/v1';
 
@@ -14,6 +16,7 @@ async function runSubscriptionArchitectureTests() {
 
   let passed = 0;
   let failed = 0;
+  let localServer: any = null;
 
   function assert(condition: boolean, testName: string, detail?: string) {
     if (condition) {
@@ -33,6 +36,14 @@ async function runSubscriptionArchitectureTests() {
   let tokenB = '';
 
   try {
+    // Check if server is running on 5000, if not start it
+    try {
+      await fetch('http://localhost:5000/api/v1/subscriptions/plans');
+    } catch {
+      console.log('[Setup] Starting local backend server on port 5000 for test suite...');
+      localServer = http.createServer(app);
+      await new Promise<void>((resolve) => localServer.listen(5000, resolve));
+    }
     // -------------------------------------------------------------------------
     // Setup Test Tenants and Users
     // -------------------------------------------------------------------------
@@ -834,6 +845,9 @@ async function runSubscriptionArchitectureTests() {
       await prisma.user.deleteMany({ where: { tenantId: tenantB.id } }).catch(() => {});
       await prisma.subscription.deleteMany({ where: { tenantId: tenantB.id } }).catch(() => {});
       await prisma.tenant.delete({ where: { id: tenantB.id } }).catch(() => {});
+    }
+    if (localServer) {
+      localServer.close();
     }
   }
 

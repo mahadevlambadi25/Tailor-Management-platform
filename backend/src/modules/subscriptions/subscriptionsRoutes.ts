@@ -29,6 +29,11 @@ router.post('/checkout', requireRoles(RoleType.SHOP_OWNER), SubscriptionsControl
 router.post('/verify-payment', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.verifyPayment);
 router.post('/verify', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.verifyPayment);
 
+// SaaS Billing History and Invoices (accessible by SHOP_OWNER and MANAGER)
+router.get('/transactions', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), SubscriptionsController.getTransactions);
+router.get('/invoices', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), SubscriptionsController.getInvoices);
+router.get('/invoices/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), SubscriptionsController.getInvoiceById);
+
 // Development/testing simulation route (strictly disabled in production)
 if (config.nodeEnv !== 'production') {
   router.post('/dev-simulate', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.devSimulate);

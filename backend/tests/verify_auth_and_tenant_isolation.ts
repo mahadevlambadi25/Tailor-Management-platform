@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../src/core/prisma';
 import { config } from '../src/config';
+import { app } from '../src/app';
+import http from 'http';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -11,6 +13,7 @@ async function runVerification() {
 
   let passed = 0;
   let failed = 0;
+  let localServer: any = null;
 
   function assert(condition: boolean, testName: string, detail?: string) {
     if (condition) {
@@ -23,6 +26,12 @@ async function runVerification() {
   }
 
   try {
+    try {
+      await fetch(`${BASE_URL}/api/v1/health`);
+    } catch {
+      localServer = http.createServer(app);
+      await new Promise<void>((resolve) => localServer.listen(5000, resolve));
+    }
     // -------------------------------------------------------------------------
     // STEP 3: VERIFY LOGIN
     // -------------------------------------------------------------------------
@@ -260,6 +269,9 @@ async function runVerification() {
     console.error('Test execution failed:', err);
     process.exit(1);
   } finally {
+    if (localServer) {
+      localServer.close();
+    }
     await prisma.$disconnect();
   }
 }

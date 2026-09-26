@@ -46,6 +46,8 @@ model Tenant {
   receipts              Receipt[]
   styles                Style[]
   subscription          Subscription?
+  subscriptionPayments  SubscriptionPayment[]
+  subscriptionInvoices  SubscriptionInvoice[]
   trials                Trial[]
   users                 User[]
 
@@ -77,11 +79,78 @@ model Subscription {
   providerSubscriptionId String?
   providerCustomerId     String?
 
-  tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments               SubscriptionPayment[]
+  invoices               SubscriptionInvoice[]
 
   @@index([status])
   @@index([trialUsed])
   @@map("subscriptions")
+}
+
+model SubscriptionPayment {
+  id             String                    @id @default(uuid())
+  tenantId       String
+  subscriptionId String
+  provider       String                    @default("razorpay")
+  orderId        String
+  paymentId      String?
+  signature      String?
+  amount         Decimal                   @db.Decimal(10, 2)
+  currency       String                    @default("INR")
+  status         SubscriptionPaymentStatus @default(PENDING)
+  planName       String
+  billingPeriod  String?                   @default("MONTHLY")
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  paidAt         DateTime?
+  failureReason  String?
+  metadata       Json?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription   Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoice        SubscriptionInvoice?
+
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([status])
+  @@map("subscription_payments")
+}
+
+model SubscriptionInvoice {
+  id                 String                    @id @default(uuid())
+  tenantId           String
+  subscriptionId     String
+  paymentId          String?                   @unique
+  invoiceNumber      String
+  planName           String
+  amount             Decimal                   @db.Decimal(10, 2)
+  currency           String                    @default("INR")
+  status             SubscriptionInvoiceStatus @default(PAID)
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  paidAt             DateTime?
+  providerPaymentId  String?
+  customerName       String?
+  customerEmail      String?
+  billingAddress     String?
+  pdfUrl             String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription       Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payment            SubscriptionPayment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("subscription_invoices")
 }
 
 model FeatureFlag {
@@ -758,6 +827,19 @@ enum SubscriptionStatus {
   EXPIRED
   CANCELLED
   PAST_DUE
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum SubscriptionInvoiceStatus {
+  ISSUED
+  PAID
+  VOID
 }
 
 enum RoleType {

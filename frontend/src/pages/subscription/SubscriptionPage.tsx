@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
+import { formatCurrency } from '../../utils/currency';
 import {
   Sparkles,
   CheckCircle2,
@@ -15,7 +16,14 @@ import {
   Scissors,
   HelpCircle,
   RefreshCw,
-  Crown
+  Crown,
+  FileText,
+  CreditCard,
+  Printer,
+  Eye,
+  X,
+  Calendar,
+  DollarSign
 } from 'lucide-react';
 import { loadRazorpayScript } from '../../utils/razorpay';
 
@@ -23,6 +31,7 @@ interface PlanDefinition {
   name: string;
   displayName: string;
   price: string;
+  priceValue: number;
   period: string;
   maxOrdersPerMonth: number;
   maxStaff: number;
@@ -31,11 +40,64 @@ interface PlanDefinition {
   popular?: boolean;
 }
 
+interface BillingTransaction {
+  id: string;
+  orderId: string;
+  paymentId: string | null;
+  amount: number | string;
+  currency: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  planName: string;
+  paidAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    amount: number | string;
+  } | null;
+}
+
+interface SubscriptionInvoice {
+  id: string;
+  invoiceNumber: string;
+  planName: string;
+  amount: number | string;
+  currency: string;
+  status: 'ISSUED' | 'PAID' | 'VOID';
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  paidAt: string | null;
+  providerPaymentId: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  billingAddress: string | null;
+  createdAt: string;
+  payment?: {
+    id: string;
+    orderId: string;
+    paymentId: string | null;
+    status: string;
+  } | null;
+  tenant?: {
+    id: string;
+    name: string;
+    slug: string;
+    email: string | null;
+    phone: string;
+    address: string | null;
+    gstNumber: string | null;
+    currency: string;
+  } | null;
+}
+
 const PLANS: PlanDefinition[] = [
   {
     name: 'STARTER',
     displayName: 'Starter Atelier',
     price: '₹999',
+    priceValue: 999,
     period: '/ month',
     maxOrdersPerMonth: 500,
     maxStaff: 15,
@@ -55,6 +117,7 @@ const PLANS: PlanDefinition[] = [
     name: 'PROFESSIONAL',
     displayName: 'Professional Boutique',
     price: '₹2,499',
+    priceValue: 2499,
     period: '/ month',
     maxOrdersPerMonth: 2000,
     maxStaff: 50,
@@ -73,9 +136,10 @@ const PLANS: PlanDefinition[] = [
     ]
   },
   {
-    name: 'ENTERPRISE',
+    name: 'BUSINESS',
     displayName: 'Enterprise Haute Couture',
     price: '₹5,999',
+    priceValue: 5999,
     period: '/ month',
     maxOrdersPerMonth: 10000,
     maxStaff: 200,
@@ -104,10 +168,40 @@ export const SubscriptionPage: React.FC = () => {
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // Billing History & Invoices state
+  const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
+  const [invoices, setInvoices] = useState<SubscriptionInvoice[]>([]);
+  const [loadingBilling, setLoadingBilling] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<SubscriptionInvoice | null>(null);
+
   const isExpiredQuery = searchParams.get('expired') === 'true';
+  const canManageBilling = user?.role === 'SHOP_OWNER' || user?.role === 'MANAGER';
+
+  const fetchBillingHistory = async () => {
+    if (!canManageBilling) return;
+    try {
+      setLoadingBilling(true);
+      const [txRes, invRes] = await Promise.all([
+        api.get('/subscriptions/transactions'),
+        api.get('/subscriptions/invoices')
+      ]);
+
+      if (txRes.data?.success) {
+        setTransactions(txRes.data.data || []);
+      }
+      if (invRes.data?.success) {
+        setInvoices(invRes.data.data || []);
+      }
+    } catch (err) {
+      console.warn('Could not load billing history', err);
+    } finally {
+      setLoadingBilling(false);
+    }
+  };
 
   useEffect(() => {
     refreshTenant();
+    fetchBillingHistory();
   }, []);
 
   // UI State Mapping
@@ -143,6 +237,7 @@ export const SubscriptionPage: React.FC = () => {
       if (res.success) {
         setPaymentSuccess('14-Day Free Trial activated successfully! Demo data has been purged.');
         await refreshTenant();
+        await fetchBillingHistory();
       } else {
         setPaymentError(res.error || 'Failed to start free trial.');
       }
@@ -154,7 +249,6 @@ export const SubscriptionPage: React.FC = () => {
   };
 
   const handleInitiateCheckout = async (plan: PlanDefinition) => {
-    // Prevent duplicate clicks while payment is in flight
     if (processingPlan) return;
 
     setSelectedPlan(plan.name);
@@ -212,9 +306,9 @@ export const SubscriptionPage: React.FC = () => {
             });
 
             if (verifyRes.data?.success) {
-              // 7. Refresh subscription info and show success
               setPaymentSuccess(`Payment verified successfully! Your atelier is now active on the ${plan.displayName} tier.`);
               await refreshTenant();
+              await fetchBillingHistory();
             } else {
               setPaymentError(verifyRes.data?.error?.message || 'Payment verification failed on the server.');
             }
@@ -230,7 +324,6 @@ export const SubscriptionPage: React.FC = () => {
         },
         modal: {
           ondismiss: () => {
-            // 8. User closed or cancelled modal
             setProcessingPlan(null);
             setPaymentError('Checkout window was closed. Payment was cancelled.');
           }
@@ -241,6 +334,7 @@ export const SubscriptionPage: React.FC = () => {
       rzp.on('payment.failed', (failureResponse: any) => {
         setProcessingPlan(null);
         setPaymentError(failureResponse.error?.description || 'Payment was declined or failed.');
+        fetchBillingHistory();
       });
 
       rzp.open();
@@ -254,8 +348,56 @@ export const SubscriptionPage: React.FC = () => {
     }
   };
 
-  const handleSelectPlan = (plan: PlanDefinition) => {
-    handleInitiateCheckout(plan);
+  const handleOpenInvoiceModal = async (invoiceId: string) => {
+    try {
+      const res = await api.get(`/subscriptions/invoices/${invoiceId}`);
+      if (res.data?.success) {
+        setSelectedInvoice(res.data.data);
+      }
+    } catch (e) {
+      console.error('Failed to load invoice details', e);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
+      case 'PAID':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            {status}
+          </span>
+        );
+      case 'PENDING':
+      case 'ISSUED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+            <Clock className="w-3 h-3 text-amber-600" />
+            {status}
+          </span>
+        );
+      case 'FAILED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+            <AlertTriangle className="w-3 h-3 text-rose-600" />
+            {status}
+          </span>
+        );
+      case 'REFUNDED':
+      case 'VOID':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+            {status}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
+            {status}
+          </span>
+        );
+    }
   };
 
   return (
@@ -265,18 +407,21 @@ export const SubscriptionPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
-            <span>Atelier Subscription & Billing</span>
+            <span>Atelier Subscription & SaaS Billing</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
             {tenant?.name ? `${tenant.name} Subscription` : 'Subscription Management'}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Review your atelier subscription tier, trial countdown, and platform limits.
+            Manage your Tailor SaaS subscription tier, billing period, online renewals, and tax invoices.
           </p>
         </div>
 
         <button
-          onClick={() => refreshTenant()}
+          onClick={() => {
+            refreshTenant();
+            fetchBillingHistory();
+          }}
           className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs w-fit"
         >
           <RefreshCw className="w-3.5 h-3.5" />
@@ -291,7 +436,7 @@ export const SubscriptionPage: React.FC = () => {
           <div className="flex-1">
             <h3 className="text-sm font-bold text-amber-900">Atelier Operations Locked — Active Subscription Required</h3>
             <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-              Your 14-day free trial or subscription period has elapsed. Orders, measurements, fittings, and reports are temporarily in view/locked mode. Your atelier records, staff accounts, and demo data remain 100% safe.
+              Your 14-day free trial or subscription period has elapsed. Orders, measurements, fittings, and reports are temporarily in view/locked mode. Your atelier records, staff accounts, and business data remain 100% safe.
             </p>
           </div>
         </div>
@@ -481,14 +626,14 @@ export const SubscriptionPage: React.FC = () => {
               </h2>
 
               <div className="text-xs text-slate-500 space-y-0.5">
-                {subscription?.currentPeriodStart && (
+                {subscription?.currentPeriodStart && subscription?.currentPeriodEnd && (
                   <p>
-                    Current Period: {new Date(subscription.currentPeriodStart).toLocaleDateString()} &mdash; {new Date(subscription.currentPeriodEnd || Date.now()).toLocaleDateString()}
+                    Current Period: {new Date(subscription.currentPeriodStart).toLocaleDateString()} &mdash; {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                   </p>
                 )}
-                {subscription?.currentPeriodEnd && !subscription?.currentPeriodStart && (
-                  <p>
-                    Billing Period Ends: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                {subscription?.currentPeriodEnd && (
+                  <p className="font-medium text-emerald-900">
+                    Renews on: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                   </p>
                 )}
               </div>
@@ -532,7 +677,7 @@ export const SubscriptionPage: React.FC = () => {
 
               <h2 className="text-xl font-bold text-slate-900">Subscription Inactive</h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Your {subscription?.planName || 'paid'} subscription is currently {subscription?.status?.toLowerCase() || 'inactive'}. Choose a plan to reactivate full atelier features.
+                Your {subscription?.planName || 'paid'} subscription is currently {subscription?.status?.toLowerCase() || 'inactive'}. Choose a plan below to reactivate full atelier features.
               </p>
 
               <div className="pt-1">
@@ -709,13 +854,262 @@ export const SubscriptionPage: React.FC = () => {
           <div>
             <h4 className="text-sm font-bold text-slate-900">Your Data is Safe</h4>
             <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Starting your free trial removes demo records from your workspace.
-              Your real customers, orders, measurements, and business data are preserved.
-              Demo records are not recreated after your trial expires.
+              Subscribing to a paid plan automatically cleans any initial demo data.
+              Your real customer records, orders, measurements, and business data are strictly preserved.
             </p>
           </div>
         </div>
       </div>
+
+      {/* BILLING HISTORY & INVOICES SECTIONS (Accessible to SHOP_OWNER and MANAGER) */}
+      {canManageBilling && (
+        <div className="space-y-8 pt-4">
+          {/* Section: Invoices */}
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span>SaaS Subscription Invoices</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tax invoices generated for each successful subscription billing cycle.
+                </p>
+              </div>
+            </div>
+
+            {loadingBilling ? (
+              <div className="py-8 text-center text-xs text-slate-400">Loading invoices...</div>
+            ) : invoices.length === 0 ? (
+              <div className="py-8 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-400">
+                No subscription invoices generated yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Invoice #</th>
+                      <th className="py-2.5 px-3 font-semibold">Plan</th>
+                      <th className="py-2.5 px-3 font-semibold">Billing Period</th>
+                      <th className="py-2.5 px-3 font-semibold">Amount</th>
+                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {invoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-3 font-semibold text-slate-900">{inv.invoiceNumber}</td>
+                        <td className="py-3 px-3 text-slate-600">{inv.planName}</td>
+                        <td className="py-3 px-3 text-slate-500">
+                          {new Date(inv.billingPeriodStart).toLocaleDateString()} &mdash; {new Date(inv.billingPeriodEnd).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-900">
+                          {formatCurrency(Number(inv.amount))}
+                        </td>
+                        <td className="py-3 px-3">{getStatusBadge(inv.status)}</td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            onClick={() => handleOpenInvoiceModal(inv.id)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section: Transactions */}
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-blue-600" />
+                  <span>SaaS Payment Transactions</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Detailed payment transaction log and payment gateway references.
+                </p>
+              </div>
+            </div>
+
+            {loadingBilling ? (
+              <div className="py-8 text-center text-xs text-slate-400">Loading transactions...</div>
+            ) : transactions.length === 0 ? (
+              <div className="py-8 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-400">
+                No payment transactions recorded yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Date & Time</th>
+                      <th className="py-2.5 px-3 font-semibold">Plan</th>
+                      <th className="py-2.5 px-3 font-semibold">Amount</th>
+                      <th className="py-2.5 px-3 font-semibold">Order ID</th>
+                      <th className="py-2.5 px-3 font-semibold">Payment ID</th>
+                      <th className="py-2.5 px-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-3 text-slate-500">
+                          {new Date(tx.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-800">{tx.planName}</td>
+                        <td className="py-3 px-3 font-semibold text-slate-900">
+                          {formatCurrency(Number(tx.amount))}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{tx.orderId}</td>
+                        <td className="py-3 px-3 font-mono text-[11px] text-slate-500">
+                          {tx.paymentId || '&mdash;'}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex flex-col gap-0.5">
+                            {getStatusBadge(tx.status)}
+                            {tx.failureReason && (
+                              <span className="text-[10px] text-rose-600 font-medium">
+                                {tx.failureReason}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE MODAL / PRINTABLE DIALOG */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 md:p-8 space-y-6 relative animate-scale-in">
+            {/* Header & Close */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-lg text-slate-900">Subscription Tax Invoice</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print</span>
+                </button>
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Invoice Content */}
+            <div className="space-y-6 text-xs text-slate-600">
+              {/* Shop & Issuer Info */}
+              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl">
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">Billed To (Atelier):</div>
+                  <div className="font-semibold text-slate-800 mt-1">{selectedInvoice.customerName || tenant?.name}</div>
+                  {selectedInvoice.billingAddress && <div>{selectedInvoice.billingAddress}</div>}
+                  {selectedInvoice.customerEmail && <div>{selectedInvoice.customerEmail}</div>}
+                  {tenant?.phone && <div>Phone: {tenant.phone}</div>}
+                  {tenant?.gstNumber && <div>GSTIN: {tenant.gstNumber}</div>}
+                </div>
+                <div className="text-right space-y-1">
+                  <div>
+                    <span className="text-slate-400">Invoice Number:</span>{' '}
+                    <span className="font-bold text-slate-900">{selectedInvoice.invoiceNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Date:</span>{' '}
+                    <span>{new Date(selectedInvoice.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Status:</span>{' '}
+                    <span className="font-bold text-emerald-700 uppercase">{selectedInvoice.status}</span>
+                  </div>
+                  {selectedInvoice.providerPaymentId && (
+                    <div className="pt-1">
+                      <span className="text-slate-400">Payment ID:</span>{' '}
+                      <span className="font-mono text-[10px] text-slate-700">{selectedInvoice.providerPaymentId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Line Items */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
+                    <tr>
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3">Billing Period</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-3 px-3">
+                        <div className="font-semibold text-slate-900">
+                          {selectedInvoice.planName} SaaS Subscription Plan
+                        </div>
+                        <div className="text-slate-400 text-[11px]">Monthly Recurring Atelier Access</div>
+                      </td>
+                      <td className="py-3 px-3 text-slate-500">
+                        {new Date(selectedInvoice.billingPeriodStart).toLocaleDateString()} &mdash; {new Date(selectedInvoice.billingPeriodEnd).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-900 text-right">
+                        {formatCurrency(Number(selectedInvoice.amount))}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
+                    <tr>
+                      <td colSpan={2} className="py-2.5 px-3 text-right">Total Paid:</td>
+                      <td className="py-2.5 px-3 text-right text-sm text-blue-600">
+                        {formatCurrency(Number(selectedInvoice.amount))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Payment Receipt Acknowledgement */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
+                <span className="font-semibold">Payment Confirmed:</span> Online payment received via Razorpay Gateway. Thank you for your business!
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="px-5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
