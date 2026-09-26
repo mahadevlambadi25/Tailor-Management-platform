@@ -453,7 +453,7 @@ export const SubscriptionPage: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-slate-900">14-Day Free Trial</h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Try TailorPro free for 14 days. Explore bespoke measurements, Kanban workflow, and client portals with zero upfront commitment.
+                Explore the system using sample/demo data with zero upfront commitment. When you activate a paid subscription, demo data will be safely removed from your workspace so you can start with a clean production workspace.
               </p>
               <div className="pt-2">
                 <button
@@ -461,7 +461,7 @@ export const SubscriptionPage: React.FC = () => {
                   id="start-free-trial-btn"
                   disabled={isStartingTrial}
                   onClick={handleStartTrial}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {isStartingTrial ? (
                     <>
@@ -503,7 +503,7 @@ export const SubscriptionPage: React.FC = () => {
       {isStateB && (
         <div className="rounded-2xl bg-gradient-to-br from-amber-50/80 via-amber-50/40 to-white border border-amber-200 shadow-sm p-6 overflow-hidden relative">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2">
+            <div className="space-y-2 max-w-xl">
               <div className="flex items-center gap-2.5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                   <Clock className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
@@ -515,10 +515,14 @@ export const SubscriptionPage: React.FC = () => {
               </div>
 
               <h2 className="text-xl font-bold text-slate-900">
-                Free Trial Active &mdash; {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} remaining
+                14-Day Free Trial &mdash; {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} remaining
               </h2>
 
-              <div className="text-xs text-slate-600 space-y-0.5">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Explore the system using sample/demo data. When you activate a paid subscription, demo data will be removed from your workspace so you can start with a clean production workspace. Real customer data and genuine orders you create will always be preserved.
+              </p>
+
+              <div className="text-xs text-slate-500 space-y-0.5 pt-1">
                 {subscription?.trialStart && (
                   <p>
                     Trial started: {new Date(subscription.trialStart).toLocaleDateString()}
@@ -536,7 +540,7 @@ export const SubscriptionPage: React.FC = () => {
                   type="button"
                   id="choose-paid-plan-btn"
                   onClick={scrollToPlans}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all cursor-pointer"
                 >
                   <span>Choose a Paid Plan</span>
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -625,7 +629,11 @@ export const SubscriptionPage: React.FC = () => {
                 {subscription?.planName} Atelier Plan
               </h2>
 
-              <div className="text-xs text-slate-500 space-y-0.5">
+              <p className="text-xs text-emerald-800 font-medium">
+                Workspace Clean &amp; Active &bull; Sample demo data has been safely purged. All genuine customer records, measurements, and orders are live.
+              </p>
+
+              <div className="text-xs text-slate-500 space-y-0.5 pt-0.5">
                 {subscription?.currentPeriodStart && subscription?.currentPeriodEnd && (
                   <p>
                     Current Period: {new Date(subscription.currentPeriodStart).toLocaleDateString()} &mdash; {new Date(subscription.currentPeriodEnd).toLocaleDateString()}

@@ -24,10 +24,11 @@ export class AuthController {
       }
 
       // Check if client explicitly supplied a tenant slug in body or header
-      const hasExplicitSlug = !!(req.body?.tenantSlug || req.headers['x-tenant-slug']);
+      const clientProvidedSlug = req.body?.tenantSlug || (req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']).trim() : '');
+      const hasExplicitSlug = !!clientProvidedSlug;
 
       let user = null;
-      if (tenantId) {
+      if (hasExplicitSlug && tenantId) {
         user = await prisma.user.findFirst({
           where: {
             tenantId,
@@ -35,19 +36,44 @@ export class AuthController {
           },
           include: { branch: true, tenant: true }
         });
-      }
-
-      // If user was not found under the fallback tenant and no explicit slug was provided,
-      // allow resolving tenant automatically by user's email
-      if (!user && !hasExplicitSlug) {
-        user = await prisma.user.findFirst({
+      } else {
+        // Auto-resolve workspace by email
+        const candidateUsers = await prisma.user.findMany({
           where: {
             email: email.toLowerCase().trim()
           },
           include: { branch: true, tenant: true }
         });
-        if (user) {
+
+        // Filter valid workspaces where credentials match
+        const matchedUsers: typeof candidateUsers = [];
+        for (const candidate of candidateUsers) {
+          if (candidate.isActive && candidate.tenant.isActive) {
+            const isMatch = await bcrypt.compare(password, candidate.passwordHash);
+            if (isMatch) {
+              matchedUsers.push(candidate);
+            }
+          }
+        }
+
+        if (matchedUsers.length > 1) {
+          // Multiple workspaces detected -> present workspace selection screen
+          return res.json({
+            success: true,
+            requiresWorkspaceSelection: true,
+            workspaces: matchedUsers.map((u) => ({
+              tenantId: u.tenant.id,
+              tenantName: u.tenant.name,
+              tenantSlug: u.tenant.slug,
+              branchName: u.branch?.name || 'Main Atelier',
+              role: u.role
+            }))
+          });
+        } else if (matchedUsers.length === 1) {
+          user = matchedUsers[0];
           tenantId = user.tenantId;
+        } else if (candidateUsers.length > 0) {
+          user = candidateUsers[0];
         }
       }
 

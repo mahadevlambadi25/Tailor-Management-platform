@@ -68,6 +68,14 @@ export async function purgeTenantDemoData(tenantId: string): Promise<DemoPurgeRe
         where: { tenantId, isDemo: true }
       });
 
+      // 5. If tenant was marked as demo, transition tenant to production (isDemo: false)
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: { isDemo: false }
+      }).catch(() => {
+        // Ignored if already false or tenant not found
+      });
+
       return {
         deletedOrdersCount: deletedOrders.count,
         deletedAppointmentsCount: deletedAppointments.count,

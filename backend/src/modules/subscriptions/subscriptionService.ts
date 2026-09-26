@@ -173,7 +173,7 @@ export class SubscriptionService {
    * - Transactionally activates the trial and executes idempotent purgeTenantDemoData.
    * - Preserves all real customer/business data, staff, tenant, subscription.
    */
-  static async startTrial(tenantId: string) {
+  static async startTrial(tenantId: string, options?: { clearDemo?: boolean }) {
     let sub = await prisma.subscription.findUnique({
       where: { tenantId }
     });
@@ -225,8 +225,12 @@ export class SubscriptionService {
       }
     });
 
-    // Transactionally & idempotently purge ONLY demo data belonging to this tenant
-    const purgeResult = await purgeTenantDemoData(tenantId);
+    // In normal trial onboarding, sample/demo data is PRESERVED so the tenant can explore during trial.
+    // Demo data is ONLY purged when a tenant activates a PAID subscription.
+    let purgeResult = null;
+    if (options?.clearDemo) {
+      purgeResult = await purgeTenantDemoData(tenantId);
+    }
 
     // Audit log
     await prisma.auditLog.create({
@@ -241,7 +245,7 @@ export class SubscriptionService {
           trialStart: now.toISOString(),
           trialEnd: trialEnd.toISOString(),
           trialUsed: true,
-          ...purgeResult
+          demoPurged: options?.clearDemo ?? false
         }
       }
     }).catch((err) => logger.error('[SubscriptionService] Failed to record trial activation audit log', err));

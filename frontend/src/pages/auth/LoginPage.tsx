@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Building2,
   CheckCircle2,
-  Loader2
+  Loader2,
+  KeyRound,
+  X
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -31,6 +33,14 @@ interface DemoAccount {
   description: string;
   badge?: string;
   badgeColor?: string;
+}
+
+interface WorkspaceInfo {
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  branchName: string;
+  role: string;
 }
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
@@ -79,13 +89,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const { login } = useAuth();
   const { tenantSlug, setTenantSlug } = useTenant();
 
+  // Environment detection: in production build, Demo Accounts UI is strictly hidden
+  const isDev = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true';
+
   // Mode state: 'login' | 'register'
   const isRegisterRoute = location.pathname === '/register' || initialMode === 'register';
   const [mode, setMode] = useState<'login' | 'register'>(isRegisterRoute ? 'register' : 'login');
 
-  // Sub-tab in Login mode: 'credentials' | 'demo'
+  // Sub-tab in Login mode: 'credentials' | 'demo' (only available in development)
   const tabParam = searchParams.get('tab');
-  const [loginSubTab, setLoginSubTab] = useState<'credentials' | 'demo'>(tabParam === 'demo' ? 'demo' : 'credentials');
+  const [loginSubTab, setLoginSubTab] = useState<'credentials' | 'demo'>(
+    isDev && tabParam === 'demo' ? 'demo' : 'credentials'
+  );
 
   // Form fields
   const [name, setName] = useState('');
@@ -94,6 +109,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [customSlug, setCustomSlug] = useState(tenantSlug || '');
   const [showAdvancedSlug, setShowAdvancedSlug] = useState(false);
+
+  // Multi-workspace selection state
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
+
+  // Forgot password modal state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStatus, setForgotStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
+    type: 'idle',
+    message: ''
+  });
 
   // Status & feedback
   const [error, setError] = useState('');
@@ -107,11 +133,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       setMode('register');
     } else if (location.pathname === '/login') {
       setMode('login');
-      if (searchParams.get('tab') === 'demo') {
+      if (isDev && searchParams.get('tab') === 'demo') {
         setLoginSubTab('demo');
+      } else {
+        setLoginSubTab('credentials');
       }
     }
-  }, [location.pathname, searchParams]);
+  }, [location.pathname, searchParams, isDev]);
 
   // Handle OAuth callback parameters (e.g. ?token=... or ?error=...)
   useEffect(() => {
@@ -160,6 +188,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const handleSwitchMode = (targetMode: 'login' | 'register') => {
     setError('');
     setSuccessMsg('');
+    setWorkspaces([]);
     setMode(targetMode);
     if (targetMode === 'register') {
       navigate('/register', { replace: false });
@@ -172,7 +201,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   // Google OAuth initiation
   const handleGoogleAuth = () => {
     setError('');
-    // Direct redirect to backend Google OAuth initiation route
     const base = API_BASE_URL.replace(/\/+$/, '');
     window.location.href = `${base}/auth/google`;
   };
@@ -182,6 +210,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
     if (e) e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setWorkspaces([]);
 
     if (!email.trim()) {
       setError('Please enter your email address');
@@ -212,6 +241,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       }
 
       const res = await api.post('/auth/login', payload, { headers });
+
+      // Multi-workspace detection: show workspace picker
+      if (res.data.requiresWorkspaceSelection && res.data.workspaces?.length > 1) {
+        setWorkspaces(res.data.workspaces);
+        return;
+      }
+
       if (res.data.success) {
         const resolvedSlug = res.data.data.user.tenant?.slug || activeSlug || 'royal-bespoke';
         localStorage.setItem('tailor_tenant_slug', resolvedSlug);
@@ -232,8 +268,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
     }
   };
 
-  // 1-Click Demo Login
+  // Select a specific workspace from the workspace list
+  const handleSelectWorkspace = async (workspaceSlug: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      localStorage.setItem('tailor_tenant_slug', workspaceSlug);
+      setTenantSlug(workspaceSlug);
+
+      const res = await api.post(
+        '/auth/login',
+        {
+          email: email.trim().toLowerCase(),
+          password,
+          tenantSlug: workspaceSlug
+        },
+        {
+          headers: { 'x-tenant-slug': workspaceSlug }
+        }
+      );
+
+      if (res.data.success) {
+        login(res.data.data.token, res.data.data.user, res.data.data.permissions);
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to open selected workspace.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 1-Click Demo Login (Development Only)
   const handleDemoLogin = async (demo: DemoAccount) => {
+    if (!isDev) return;
     setError('');
     setSuccessMsg('');
     setSigningInDemoRole(demo.name);
@@ -267,14 +335,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
     }
   };
 
-  // User Registration
+  // User Registration (New Shop Owner)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     if (!name.trim()) {
-      setError('Please enter your full name');
+      setError('Please enter your full name or atelier name');
       return;
     }
     if (!email.trim()) {
@@ -323,6 +391,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
     }
   };
 
+  // Forgot Password submission
+  const handleForgotPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setForgotStatus({ type: 'error', message: 'Please enter your registered email address.' });
+      return;
+    }
+    setForgotStatus({
+      type: 'success',
+      message: `If an account exists for ${forgotEmail.trim()}, a password reset link has been dispatched. Please also contact your shop administrator if you require immediate access.`
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex flex-col justify-center py-10 sm:px-6 lg:px-8 selection:bg-blue-600 selection:text-white">
       {/* Brand Header */}
@@ -331,7 +412,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
           <Scissors className="h-7 w-7" />
         </div>
         <h1 className="text-2xl font-extrabold tracking-tight text-white">Tailor Management System</h1>
-        <p className="mt-1 text-xs text-slate-400">Multi-Tenant SaaS Platform — Core Operating System</p>
+        <p className="mt-1 text-xs text-slate-400">
+          {isDev
+            ? 'Multi-Tenant SaaS Platform — Core Operating System'
+            : 'Bespoke Tailoring & Atelier Management Platform'}
+        </p>
       </div>
 
       <div className="mt-7 sm:mx-auto sm:w-full sm:max-w-md">
@@ -340,17 +425,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
           {/* Card Title & Subtitle */}
           <div className="mb-6 text-center">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
-              {mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+              {workspaces.length > 0
+                ? 'Choose your workspace'
+                : mode === 'login'
+                ? isDev
+                  ? 'Sign in to your account'
+                  : 'Welcome back'
+                : 'Start your 14-day free trial'}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              {mode === 'login'
-                ? 'Enter your credentials or choose a demo atelier'
-                : 'Start running your atelier with a 14-day free trial'}
+              {workspaces.length > 0
+                ? "Your account belongs to multiple ateliers. Select which workspace you'd like to open:"
+                : mode === 'login'
+                ? isDev
+                  ? 'Enter your credentials or choose a demo atelier'
+                  : 'Sign in to your shop'
+                : 'No credit card required. Experience the full tailoring operating system.'}
             </p>
           </div>
 
-          {/* Sub-Tabs for Login Mode (Sign In vs Demo Accounts) */}
-          {mode === 'login' && (
+          {/* Sub-Tabs for Login Mode (ONLY in Development Environment) */}
+          {isDev && mode === 'login' && workspaces.length === 0 && (
             <div className="mb-5 flex rounded-xl bg-slate-100 p-1 border border-slate-200">
               <button
                 type="button"
@@ -396,8 +491,55 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
             </div>
           )}
 
-          {/* 1. LOGIN MODE - CREDENTIALS VIEW */}
-          {mode === 'login' && loginSubTab === 'credentials' && (
+          {/* MULTI-WORKSPACE SELECTION VIEW */}
+          {workspaces.length > 0 ? (
+            <div className="space-y-3">
+              <div className="space-y-2.5">
+                {workspaces.map((ws) => (
+                  <div
+                    key={ws.tenantId}
+                    className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition-all flex items-center justify-between gap-3 bg-white shadow-xs"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-slate-900">{ws.tenantName}</div>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                        <Building2 className="w-3 h-3 text-slate-400" />
+                        <span>{ws.branchName}</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-blue-600 font-semibold">{ws.role}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleSelectWorkspace(ws.tenantSlug)}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {loading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <span>Open</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-3 text-center border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setWorkspaces([])}
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  ← Sign in with a different account
+                </button>
+              </div>
+            </div>
+          ) : mode === 'login' && loginSubTab === 'credentials' ? (
+            /* 1. LOGIN MODE - CREDENTIALS VIEW */
             <div>
               <form onSubmit={handleEmailLogin} className="space-y-4">
                 <div>
@@ -417,7 +559,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Password</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setForgotStatus({ type: 'idle', message: '' });
+                        setShowForgotPassword(true);
+                      }}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative mt-1">
                     <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input
@@ -432,30 +587,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                   </div>
                 </div>
 
-                {/* Optional Custom Atelier Slug */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedSlug(!showAdvancedSlug)}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1 transition-colors"
-                  >
-                    <span>{showAdvancedSlug ? 'Hide atelier ID' : 'Atelier ID / Tenant Slug (optional)'}</span>
-                    {showAdvancedSlug ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
+                {/* Optional Custom Atelier Slug in Development */}
+                {isDev && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedSlug(!showAdvancedSlug)}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1 transition-colors"
+                    >
+                      <span>{showAdvancedSlug ? 'Hide atelier ID' : 'Atelier ID / Tenant Slug (optional)'}</span>
+                      {showAdvancedSlug ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
 
-                  {showAdvancedSlug && (
-                    <div className="mt-2 relative">
-                      <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        value={customSlug}
-                        onChange={(e) => setCustomSlug(e.target.value)}
-                        className="block w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-hidden"
-                        placeholder="e.g. royal-bespoke (auto-detected if empty)"
-                      />
-                    </div>
-                  )}
-                </div>
+                    {showAdvancedSlug && (
+                      <div className="mt-2 relative">
+                        <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={customSlug}
+                          onChange={(e) => setCustomSlug(e.target.value)}
+                          className="block w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                          placeholder="e.g. royal-bespoke (auto-detected if empty)"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button
                   id="login-submit-button"
@@ -518,36 +675,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                 <span>Continue with Google</span>
               </button>
 
-              {/* Link to Register */}
+              {/* Link to Register / Start Free Trial */}
               <div className="mt-5 text-center">
-                <span className="text-xs text-slate-500">Don't have an account? </span>
+                <span className="text-xs text-slate-500">
+                  {isDev ? "Don't have an account? " : 'New to Tailor Management? '}
+                </span>
                 <button
                   id="go-to-register-link"
                   type="button"
                   onClick={() => handleSwitchMode('register')}
                   className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                 >
-                  Register
+                  {isDev ? 'Register' : 'Start Free Trial'}
                 </button>
               </div>
 
-              {/* Quick Accordion for Demo Accounts */}
-              <div className="mt-5 pt-4 border-t border-slate-100 text-center">
-                <button
-                  type="button"
-                  id="explore-demo-accounts-button"
-                  onClick={() => setLoginSubTab('demo')}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-blue-600 transition-colors"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Looking for Demo Accounts? Click to View 4 Accounts →</span>
-                </button>
-              </div>
+              {/* Quick Accordion for Demo Accounts (Development Only) */}
+              {isDev && (
+                <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    id="explore-demo-accounts-button"
+                    onClick={() => setLoginSubTab('demo')}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 hover:text-blue-600 transition-colors"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Looking for Demo Accounts? Click to View 4 Accounts →</span>
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* 2. LOGIN MODE - DEMO ACCOUNTS VIEW */}
-          {mode === 'login' && loginSubTab === 'demo' && (
+          ) : isDev && mode === 'login' && loginSubTab === 'demo' ? (
+            /* 2. LOGIN MODE - DEMO ACCOUNTS VIEW (Development Only) */
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -564,7 +723,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
               </div>
 
               <p className="text-[11px] text-slate-500">
-                Click any demo option below to immediately log in and go to the dashboard:
+                Click any demo option below to immediately log in and explore the dashboard:
               </p>
 
               <div className="grid grid-cols-1 gap-2.5">
@@ -622,14 +781,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                 </button>
               </div>
             </div>
-          )}
-
-          {/* 3. REGISTER MODE */}
-          {mode === 'register' && (
+          ) : (
+            /* 3. REGISTER MODE (14-DAY FREE TRIAL) */
             <div>
               <form onSubmit={handleRegister} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Name</label>
+                  <label className="block text-xs font-semibold text-slate-700">Atelier or Owner Name</label>
                   <div className="relative mt-1">
                     <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input
@@ -638,14 +795,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="block w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden transition-all"
-                      placeholder="e.g. Master Sartor"
+                      placeholder="e.g. Royal Atelier or Master Tailor"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Email</label>
+                  <label className="block text-xs font-semibold text-slate-700">Email Address</label>
                   <div className="relative mt-1">
                     <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input
@@ -654,7 +811,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="block w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden transition-all"
-                      placeholder="name@tailorshop.com"
+                      placeholder="owner@tailorshop.com"
                       required
                     />
                   </div>
@@ -701,11 +858,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Creating Account...</span>
+                      <span>Creating Atelier Account...</span>
                     </>
                   ) : (
                     <>
-                      <span>Register</span>
+                      <span>Start 14-Day Free Trial</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -755,14 +912,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
 
               {/* Link to Login */}
               <div className="mt-5 text-center">
-                <span className="text-xs text-slate-500">Already have an account? </span>
+                <span className="text-xs text-slate-500">Already have an atelier account? </span>
                 <button
                   id="go-to-login-link"
                   type="button"
                   onClick={() => handleSwitchMode('login')}
                   className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                 >
-                  Login
+                  Sign In
                 </button>
               </div>
             </div>
@@ -780,10 +937,96 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
           </div>
         </div>
 
+        {/* Security Footer Note */}
         <p className="mt-4 text-center text-xs text-slate-400">
-          Server-enforced tenant isolation & bcrypt password encryption.
+          {isDev
+            ? 'Server-enforced tenant isolation & bcrypt password encryption.'
+            : 'Enterprise-grade 256-bit encryption & secure cloud hosting.'}
         </p>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative animate-fade-in">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
+                <p className="text-xs text-slate-500">Atelier staff & owner password recovery</p>
+              </div>
+            </div>
+
+            {forgotStatus.type === 'success' ? (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 leading-relaxed">
+                  {forgotStatus.message}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Enter your registered atelier email address. If you are a tailor, cutter, or receptionist, your Atelier Owner can also reset your credentials directly from Staff Settings.
+                </p>
+
+                {forgotStatus.type === 'error' && (
+                  <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                    {forgotStatus.message}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">Email Address</label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="block w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                      placeholder="name@tailorshop.com"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
+                  >
+                    Send Instructions
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

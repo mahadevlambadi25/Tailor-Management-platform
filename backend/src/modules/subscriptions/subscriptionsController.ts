@@ -223,7 +223,7 @@ export class SubscriptionsController {
 
       return res.status(200).json({
         success: true,
-        message: '14-Day Free Trial activated successfully. Demo data has been purged.',
+        message: '14-Day Free Trial activated successfully. Explore the system with sample data.',
         data: {
           subscription: summary,
           purgeResult
