@@ -88,6 +88,9 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
     });
 
     if (!tenant) {
+      if (req.path.includes('/login')) {
+        return next();
+      }
       return res.status(404).json({
         success: false,
         error: { message: `Tenant '${slug}' not found`, code: 'TENANT_NOT_FOUND' }

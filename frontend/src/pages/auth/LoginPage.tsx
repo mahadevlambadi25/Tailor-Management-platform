@@ -115,7 +115,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [customSlug, setCustomSlug] = useState(tenantSlug || '');
+  const [customSlug, setCustomSlug] = useState('');
   const [showAdvancedSlug, setShowAdvancedSlug] = useState(false);
 
   // Multi-workspace selection state
@@ -255,8 +255,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       const headers: any = {};
       if (activeSlug) {
         headers['x-tenant-slug'] = activeSlug;
-      } else {
-        headers['x-tenant-slug'] = '';
       }
 
       const res = await api.post('/auth/login', payload, { headers });
@@ -280,7 +278,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       } else if (!err.response || err.response.status === 504 || err.response.status === 502) {
         setError('Cannot connect to backend server. Please verify your connection or ensure backend is running.');
       } else {
-        setError(err.message || 'Invalid email or password. Please verify your credentials.');
+        setError(err.message || 'An unexpected error occurred. Please verify your connection or try again.');
       }
     } finally {
       setLoading(false);

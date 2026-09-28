@@ -41,6 +41,7 @@ interface MeasurementSnapshot {
 
 export const ProductionBoardPage: React.FC = () => {
   const { user } = useAuth();
+  const isManagement = user?.role === 'SHOP_OWNER' || user?.role === 'MANAGER';
 
   const [board, setBoard] = useState<Record<string, any[]>>({});
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -104,15 +105,26 @@ export const ProductionBoardPage: React.FC = () => {
 
       const params = new URLSearchParams();
       if (search.trim()) params.append('search', search.trim());
-      if (selectedStaffId) params.append('assignedStaffId', selectedStaffId);
+      if (selectedStaffId && isManagement) params.append('assignedStaffId', selectedStaffId);
       if (delayedOnly) params.append('isDelayed', 'true');
       if (urgentOnly) params.append('priority', 'URGENT');
       if (myTasksOnly) params.append('myTasks', 'true');
 
-      const [boardRes, staffRes] = await Promise.all([
-        api.get(`/production/board?${params.toString()}`),
-        api.get('/users')
-      ]);
+      // For craft roles, pass their craft role to scope to relevant work
+      if (user?.role && ['TAILOR', 'CUTTER', 'FINISHER'].includes(user.role)) {
+        params.append('role', user.role);
+      }
+
+      // Only management roles (SHOP_OWNER, MANAGER) have privileges to list all users
+      const boardPromise = api.get(`/production/board?${params.toString()}`);
+      const staffPromise = isManagement
+        ? api.get('/users').catch((err) => {
+            console.warn('Could not load staff list for assignment:', err);
+            return null;
+          })
+        : Promise.resolve(null);
+
+      const [boardRes, staffRes] = await Promise.all([boardPromise, staffPromise]);
 
       if (boardRes.data?.success) {
         setBoard(boardRes.data.data || {});
@@ -120,7 +132,7 @@ export const ProductionBoardPage: React.FC = () => {
         throw new Error(boardRes.data?.error?.message || 'Failed to load production board');
       }
 
-      if (staffRes.data?.success) {
+      if (staffRes?.data?.success) {
         setStaffList(staffRes.data.data || []);
       }
     } catch (e: any) {
@@ -129,7 +141,7 @@ export const ProductionBoardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, selectedStaffId, delayedOnly, urgentOnly, myTasksOnly]);
+  }, [search, selectedStaffId, delayedOnly, urgentOnly, myTasksOnly, isManagement, user?.role]);
 
   useEffect(() => {
     fetchBoardData();
@@ -286,6 +298,23 @@ export const ProductionBoardPage: React.FC = () => {
     setMyTasksOnly(false);
   };
 
+  // Check if current user is permitted to advance the given job stage
+  const canAdvanceStage = (job: any, nextStage: any) => {
+    if (!nextStage) return false;
+    if (isManagement) return true;
+    if (nextStage.key === 'DELIVERED') return false; // Handover/delivery restricted to counter & management
+    if (user?.role === 'CUTTER') {
+      return job.currentStage === 'CUTTING';
+    }
+    if (user?.role === 'TAILOR') {
+      return job.currentStage === 'STITCHING' || job.currentStage === 'ALTERATION';
+    }
+    if (user?.role === 'FINISHER') {
+      return job.currentStage === 'FINISHING';
+    }
+    return false;
+  };
+
   // Render Job Card
   const renderJobCard = (job: any, sIdx: number) => {
     const nextStage = stages[sIdx + 1];
@@ -434,21 +463,23 @@ export const ProductionBoardPage: React.FC = () => {
 
             {/* Delivered Job: Return for Alteration Action */}
             {job.currentStage === 'DELIVERED' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setReturnModalJob(job);
-                  setReturnReason('');
-                  setReturnNotes('');
-                  setReturnError('');
-                }}
-                className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-amber-700 shadow-xs transition"
-              >
-                <RotateCcw className="h-2.5 w-2.5" />
-                <span>Return for Alteration</span>
-              </button>
+              (isManagement || user?.role === 'TAILOR' || user?.role === 'RECEPTIONIST') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnModalJob(job);
+                    setReturnReason('');
+                    setReturnNotes('');
+                    setReturnError('');
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-amber-700 shadow-xs transition"
+                >
+                  <RotateCcw className="h-2.5 w-2.5" />
+                  <span>Return for Alteration</span>
+                </button>
+              )
             ) : (
-              nextStage && (
+              canAdvanceStage(job, nextStage) && (
                 <button
                   type="button"
                   onClick={() => handleStageAdvance(job, nextStage.key)}
@@ -515,21 +546,23 @@ export const ProductionBoardPage: React.FC = () => {
             )}
           </div>
 
-          {/* Staff Filter Dropdown */}
-          <div>
-            <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs bg-white text-slate-700 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">All Workshop Staff</option>
-              {staffList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.role})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Staff Filter Dropdown (Management only) */}
+          {isManagement && (
+            <div>
+              <select
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs bg-white text-slate-700 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">All Workshop Staff</option>
+                {staffList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Quick Toggle: My Assigned Tasks */}
           <button

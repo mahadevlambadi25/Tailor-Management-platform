@@ -28,11 +28,29 @@ api.interceptors.request.use((req) => {
     req.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage
-  if (req.headers['x-tenant-slug'] === '') {
-    delete req.headers['x-tenant-slug'];
-  } else if (!req.headers['x-tenant-slug']) {
-    req.headers['x-tenant-slug'] = storedSlug;
+  const isAuthLoginOrRegister =
+    typeof req.url === 'string' && (req.url.includes('/auth/login') || req.url.includes('/auth/register'));
+
+  if (isAuthLoginOrRegister) {
+    // Only send x-tenant-slug on login/register if explicitly provided by the caller
+    if (!req.headers['x-tenant-slug'] || req.headers['x-tenant-slug'] === '') {
+      if (typeof req.headers.delete === 'function') {
+        req.headers.delete('x-tenant-slug');
+      } else {
+        delete req.headers['x-tenant-slug'];
+      }
+    }
+  } else {
+    // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage
+    if (req.headers['x-tenant-slug'] === '') {
+      if (typeof req.headers.delete === 'function') {
+        req.headers.delete('x-tenant-slug');
+      } else {
+        delete req.headers['x-tenant-slug'];
+      }
+    } else if (!req.headers['x-tenant-slug']) {
+      req.headers['x-tenant-slug'] = storedSlug;
+    }
   }
 
   return req;

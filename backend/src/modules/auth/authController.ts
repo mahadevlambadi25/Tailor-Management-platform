@@ -24,12 +24,11 @@ export class AuthController {
         });
       }
 
-      // Check if client explicitly supplied a tenant slug in body or header
-      const clientProvidedSlug = req.body?.tenantSlug || (req.headers['x-tenant-slug'] ? String(req.headers['x-tenant-slug']).trim() : '');
-      const hasExplicitSlug = !!clientProvidedSlug;
-
+      // If client explicitly supplied a tenant slug in request body (e.g. workspace picker or demo login), try that tenant first
+      const explicitBodySlug = req.body?.tenantSlug ? String(req.body.tenantSlug).trim() : '';
       let user = null;
-      if (hasExplicitSlug && tenantId) {
+
+      if (explicitBodySlug && tenantId) {
         user = await prisma.user.findFirst({
           where: {
             tenantId,
@@ -37,8 +36,11 @@ export class AuthController {
           },
           include: { branch: true, tenant: true }
         });
-      } else {
-        // Auto-resolve workspace by email
+      }
+
+      // If user was not found under explicit tenant, do not auto-resolve across other workspaces.
+      // Auto-resolution across workspaces by email is only for when no explicit body slug was provided.
+      if (!user && !explicitBodySlug) {
         const candidateUsers = await prisma.user.findMany({
           where: {
             email: email.toLowerCase().trim()

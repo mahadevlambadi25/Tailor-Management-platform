@@ -138,22 +138,38 @@ export class ProductionController {
         ProductionAssignmentService.enrichJobWithAssignments(job, staffMap)
       );
 
-      if (role && typeof role === 'string') {
-        const targetRole = role.toUpperCase();
-        if (targetRole === 'CUTTER') {
-          enrichedJobs = enrichedJobs.filter(
-            (j) => j.assignments.cutter?.id === targetStaffId || j.currentStage === ProductionStageName.CUTTING
-          );
-        } else if (targetRole === 'TAILOR') {
+      // Determine effective craft role filter:
+      // If user is craftsman (TAILOR, CUTTER, FINISHER), enforce their craft role automatically.
+      // Shop owners and managers can view all or optionally filter by role.
+      const userRole = req.user?.role as RoleType;
+      const isCraftsman = userRole === RoleType.TAILOR || userRole === RoleType.CUTTER || userRole === RoleType.FINISHER;
+      const activeRole = isCraftsman ? userRole : (role && typeof role === 'string' ? role.toUpperCase() : undefined);
+
+      if (activeRole) {
+        if (activeRole === 'CUTTER') {
           enrichedJobs = enrichedJobs.filter(
             (j) =>
-              j.assignments.tailor?.id === targetStaffId ||
-              j.currentStage === ProductionStageName.STITCHING ||
-              j.currentStage === ProductionStageName.ALTERATION
+              j.currentStage === ProductionStageName.CUTTING ||
+              (isCraftsman
+                ? (j.assignments.cutter?.id === req.user?.id || j.assignedToId === req.user?.id)
+                : (targetStaffId ? j.assignments.cutter?.id === targetStaffId : true))
           );
-        } else if (targetRole === 'FINISHER') {
+        } else if (activeRole === 'TAILOR') {
           enrichedJobs = enrichedJobs.filter(
-            (j) => j.assignments.finisher?.id === targetStaffId || j.currentStage === ProductionStageName.FINISHING
+            (j) =>
+              j.currentStage === ProductionStageName.STITCHING ||
+              j.currentStage === ProductionStageName.ALTERATION ||
+              (isCraftsman
+                ? (j.assignments.tailor?.id === req.user?.id || j.assignedToId === req.user?.id)
+                : (targetStaffId ? j.assignments.tailor?.id === targetStaffId : true))
+          );
+        } else if (activeRole === 'FINISHER') {
+          enrichedJobs = enrichedJobs.filter(
+            (j) =>
+              j.currentStage === ProductionStageName.FINISHING ||
+              (isCraftsman
+                ? (j.assignments.finisher?.id === req.user?.id || j.assignedToId === req.user?.id)
+                : (targetStaffId ? j.assignments.finisher?.id === targetStaffId : true))
           );
         }
       }
@@ -498,6 +514,49 @@ export class ProductionController {
 
       const fromStage = existingJob.currentStage;
       const toStage = (stage as ProductionStageName) || fromStage;
+
+      // Enforce craftsman role-specific stage permissions:
+      // Cutters can only advance from CUTTING
+      // Tailors can only advance from STITCHING or ALTERATION
+      // Finishers can only advance from FINISHING
+      // Production craftsmen cannot mark jobs as DELIVERED (counter/management responsibility)
+      const userRole = req.user?.role as RoleType;
+      if (userRole === RoleType.CUTTER && fromStage !== ProductionStageName.CUTTING) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: "Forbidden: Cutters can only advance jobs in the CUTTING stage.",
+            code: 'FORBIDDEN_STAGE_ACTION'
+          }
+        });
+      }
+      if (userRole === RoleType.TAILOR && fromStage !== ProductionStageName.STITCHING && fromStage !== ProductionStageName.ALTERATION) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: "Forbidden: Tailors can only advance jobs in STITCHING or ALTERATION stages.",
+            code: 'FORBIDDEN_STAGE_ACTION'
+          }
+        });
+      }
+      if (userRole === RoleType.FINISHER && fromStage !== ProductionStageName.FINISHING) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: "Forbidden: Finishers can only advance jobs in the FINISHING stage.",
+            code: 'FORBIDDEN_STAGE_ACTION'
+          }
+        });
+      }
+      if ((userRole === RoleType.CUTTER || userRole === RoleType.TAILOR || userRole === RoleType.FINISHER) && toStage === ProductionStageName.DELIVERED) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: "Forbidden: Delivering garments to customers is restricted to management and counter staff.",
+            code: 'FORBIDDEN_STAGE_ACTION'
+          }
+        });
+      }
 
       // DELIVERED Stage Protection:
       // Moving a DELIVERED job backwards is strictly blocked in normal transitions.

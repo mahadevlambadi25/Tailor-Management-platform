@@ -52,8 +52,7 @@ router.post(
     RoleType.MANAGER,
     RoleType.TAILOR,
     RoleType.CUTTER,
-    RoleType.FINISHER,
-    RoleType.RECEPTIONIST
+    RoleType.FINISHER
   ),
   ProductionController.updateStage
 );
