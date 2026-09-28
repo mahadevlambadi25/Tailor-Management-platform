@@ -183,7 +183,7 @@ The project includes pre-configured Render infrastructure ([render.yaml](file://
 
 ### Backend: Render Web Service
 - **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build` (runs `prisma generate && tsc`)
+- **Build Command**: `npm install --include=dev && npm run build` (runs `prisma generate && tsc`)
 - **Start Command**: `npx prisma migrate deploy && npm start` (applies all 30+ table migrations automatically, then boots Express)
 - **Health Check Path**: `/health`
 - **Required Environment Variables**:
@@ -197,7 +197,7 @@ The project includes pre-configured Render infrastructure ([render.yaml](file://
 
 ### Frontend: Render Static Site
 - **Root Directory**: `frontend`
-- **Build Command**: `npm install && npm run build`
+- **Build Command**: `npm install --include=dev && npm run build`
 - **Publish Directory**: `dist`
 - **SPA Rewrite Rule**: Automatically handled via `frontend/public/_redirects` (`/* /index.html 200`) and `render.yaml`
 - **Required Environment Variables**:

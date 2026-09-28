@@ -7,7 +7,7 @@ services:
     runtime: node
     plan: starter
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /health
     autoDeploy: true
@@ -48,7 +48,7 @@ services:
     name: tailor-management-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     staticPublishPath: ./dist
     autoDeploy: true
     routes:

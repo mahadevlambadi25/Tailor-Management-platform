@@ -151,7 +151,7 @@ The application is fully pre-configured for seamless deployment on [Render](http
    - **Name**: `tailor-management-backend`
    - **Root Directory**: `backend`
    - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npx prisma migrate deploy && npm start`
 4. In the **Environment** tab, add the environment variables:
    - `NODE_ENV` = `production`
