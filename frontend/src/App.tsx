@@ -34,6 +34,7 @@ import { CustomerMeasurementsPage } from './pages/customer-portal/CustomerMeasur
 import { CustomerProfilePage as CustomerPortalProfilePage } from './pages/customer-portal/CustomerProfilePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
+import { LandingPage } from './pages/landing/LandingPage';
 
 export function App() {
   return (
@@ -43,6 +44,9 @@ export function App() {
           <AuthProvider>
             <OfflineSyncProvider>
               <Routes>
+                {/* Public Marketing Landing Page */}
+                <Route path="/" element={<LandingPage />} />
+
                 {/* Public Auth Routes */}
                 <Route path="/login" element={<LoginPage initialMode="login" />} />
                 <Route path="/register" element={<LoginPage initialMode="register" />} />
@@ -64,7 +68,6 @@ export function App() {
                 {/* Protected Staff & Atelier Management Routes */}
                 <Route element={<ProtectedRoute />}>
                   <Route element={<AppLayout />}>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     
                     {/* Customers Module */}

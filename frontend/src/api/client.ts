@@ -43,11 +43,16 @@ let isRedirecting = false;
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    const isPublicPage =
+      window.location.pathname === '/' ||
+      window.location.pathname === '/login' ||
+      window.location.pathname === '/register' ||
+      window.location.pathname === '/portal/login';
+
     if (err.response?.status === 401) {
       const isAuthUrl = err.config?.url?.includes('/auth/');
-      const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register' || window.location.pathname === '/portal/login';
 
-      if (!isAuthUrl && !isAuthPage && !isRedirecting) {
+      if (!isAuthUrl && !isPublicPage && !isRedirecting) {
         isRedirecting = true;
         localStorage.removeItem('tailor_token');
         localStorage.removeItem('tailor_user');
@@ -57,7 +62,8 @@ api.interceptors.response.use(
       // 402 SUBSCRIPTION_REQUIRED: Tenant subscription or trial has lapsed.
       // Do NOT log out user! Preserve credentials and navigate to renewal/subscription page.
       const isSubscriptionPage = window.location.pathname.startsWith('/subscription');
-      if (!isSubscriptionPage && !isRedirecting) {
+      if (!isSubscriptionPage && !isPublicPage && !isRedirecting) {
+        isRedirecting = true;
         window.location.replace('/subscription?expired=true');
       }
     }

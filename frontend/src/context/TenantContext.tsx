@@ -68,6 +68,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchTenant = async () => {
+    const token = localStorage.getItem('tailor_token');
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get('/tenants');
