@@ -34,6 +34,7 @@ export interface TenantInfo {
   config?: any;
   subscription?: SubscriptionDetails;
   featureFlags?: Array<{ featureKey: string; isEnabled: boolean }>;
+  isDemo?: boolean;
   demoStats?: {
     demoOrdersCount: number;
     demoCustomersCount: number;

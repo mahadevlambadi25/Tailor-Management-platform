@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
     { to: '/reports', label: t('reports'), icon: BarChart3, roleRestricted: ['SHOP_OWNER', 'MANAGER', 'CASHIER'] },
     { to: '/documents', label: t('documents'), icon: Printer },
     { to: '/subscription', label: t('subscription') || 'Subscription & Plans', icon: Sparkles },
-    { to: '/customer-portal/demo', label: t('customerPortal'), icon: ShieldCheck },
+    { to: '/portal', label: t('customerPortal'), icon: ShieldCheck },
     { to: '/settings', label: t('settings'), icon: Settings, roleRestricted: ['SHOP_OWNER'] }
   ];
 

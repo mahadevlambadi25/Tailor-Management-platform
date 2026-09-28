@@ -26,6 +26,7 @@ export const OrderWizardPage: React.FC = () => {
   const [garmentTypes, setGarmentTypes] = useState<any[]>([]);
   const [availableStyles, setAvailableStyles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [garmentLoadingError, setGarmentLoadingError] = useState(false);
 
   // Form State
   const [selectedCustomerId, setSelectedCustomerId] = useState(searchParams.get('customerId') || '');
@@ -69,61 +70,70 @@ export const OrderWizardPage: React.FC = () => {
   const [error, setError] = useState('');
 
   // Initial Load
-  useEffect(() => {
-    const loadMasterData = async () => {
-      try {
-        setLoading(true);
-        const [custRes, garmRes, styleRes] = await Promise.all([
-          api.get('/customers?limit=100'),
-          api.get('/garments'),
-          api.get('/styles')
-        ]);
+  const loadMasterData = async () => {
+    try {
+      setLoading(true);
+      setGarmentLoadingError(false);
+      const [custRes, garmRes, styleRes] = await Promise.all([
+        api.get('/customers?limit=100'),
+        api.get('/garments'),
+        api.get('/styles')
+      ]);
 
-        let loadedCustomers: any[] = [];
-        if (custRes.data.success) {
-          loadedCustomers = custRes.data.data.customers;
-          setCustomers(loadedCustomers);
-        }
-
-        let loadedGarments: any[] = [];
-        if (garmRes.data.success) {
-          loadedGarments = garmRes.data.data;
-          setGarmentTypes(loadedGarments);
-        }
-
-        if (styleRes.data.success) {
-          setAvailableStyles(styleRes.data.data);
-        }
-
-        // Handle customer pre-selection from URL query param
-        if (selectedCustomerId) {
-          let found = loadedCustomers.find((c: any) => c.id === selectedCustomerId);
-          if (!found) {
-            try {
-              // Fetch customer profile directly if not in initial list
-              const singleRes = await api.get(`/customers/${selectedCustomerId}`);
-              if (singleRes.data.success) {
-                found = singleRes.data.data;
-                setCustomers((prev) => [found, ...prev]);
-              }
-            } catch (err) {
-              console.error('Failed to load selected customer', err);
-            }
-          }
-
-          if (found) {
-            handleSelectCustomer(found, loadedGarments);
-          }
-        } else if (loadedGarments.length > 0) {
-          const shirt = loadedGarments.find((g: any) => g.code === 'SHIRT') || loadedGarments[0];
-          setItems((prev) => [{ ...prev[0], garmentTypeId: shirt.id }]);
-        }
-      } catch (e) {
-        console.error('Failed to load order master data', e);
-      } finally {
-        setLoading(false);
+      let loadedCustomers: any[] = [];
+      if (custRes.data?.success) {
+        loadedCustomers = custRes.data.data.customers;
+        setCustomers(loadedCustomers);
       }
-    };
+
+      let loadedGarments: any[] = [];
+      if (garmRes.data?.success) {
+        loadedGarments = garmRes.data.data;
+        setGarmentTypes(loadedGarments);
+      }
+
+      if (styleRes.data?.success) {
+        setAvailableStyles(styleRes.data.data);
+      }
+
+      // Handle customer pre-selection from URL query param
+      if (selectedCustomerId) {
+        let found = loadedCustomers.find((c: any) => c.id === selectedCustomerId);
+        if (!found) {
+          try {
+            // Fetch customer profile directly if not in initial list
+            const singleRes = await api.get(`/customers/${selectedCustomerId}`);
+            if (singleRes.data?.success) {
+              found = singleRes.data.data;
+              setCustomers((prev) => [found, ...prev]);
+            }
+          } catch (err) {
+            console.error('Failed to load selected customer', err);
+          }
+        }
+
+        if (found) {
+          handleSelectCustomer(found, loadedGarments);
+        }
+      } else if (loadedGarments.length > 0) {
+        const shirt = loadedGarments.find((g: any) => g.code === 'SHIRT') || loadedGarments[0];
+        setItems((prev) => [
+          {
+            ...prev[0],
+            garmentTypeId: shirt.id,
+            itemPrice: Number(shirt.defaultPrice) || prev[0].itemPrice || 1500
+          }
+        ]);
+      }
+    } catch (e) {
+      console.error('Failed to load order master data', e);
+      setGarmentLoadingError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadMasterData();
   }, []);
 
@@ -178,6 +188,21 @@ export const OrderWizardPage: React.FC = () => {
     const updated = [...items];
     updated[index].garmentTypeId = garmentId;
 
+    // Reset style selection if it does not belong to this garment type
+    if (updated[index].selectedStyleId) {
+      const match = availableStyles.find(
+        (s) => s.id === updated[index].selectedStyleId && s.garmentTypeId === garmentId
+      );
+      if (!match) {
+        updated[index].selectedStyleId = '';
+      }
+    }
+
+    // Auto-fill price from garment default price if configured
+    if (g && Number(g.defaultPrice) > 0) {
+      updated[index].itemPrice = Number(g.defaultPrice);
+    }
+
     // Check if customer has a saved measurement profile for this garment
     const savedMatch = selectedCustomer?.measurements?.find((m: any) => m.garmentTypeId === garmentId);
     if (savedMatch && savedMatch.versions?.[0]?.values) {
@@ -186,14 +211,23 @@ export const OrderWizardPage: React.FC = () => {
       updated[index].appliedSavedProfileId = savedMatch.id;
     } else {
       updated[index].appliedSavedProfileId = null;
-      if (g?.code === 'PANT') {
-        updated[index].itemPrice = 2200;
+      // If template versions exist on the garment object, populate with standard defaults
+      const templateFields = g?.templates?.[0]?.versions?.[0]?.fields;
+      if (Array.isArray(templateFields) && templateFields.length > 0) {
+        const defaultVals: Record<string, number> = {};
+        templateFields.forEach((f: any) => {
+          defaultVals[f.key] = f.min ? Math.round((f.min + (f.max || f.min)) / 2) : 30;
+        });
+        updated[index].measurementValues = defaultVals;
+      } else if (g?.code === 'PANT') {
         updated[index].measurementValues = { Waist: 34, Hip: 40, Inseam: 31, Outseam: 41, Thigh: 24, Bottom: 15 };
       } else if (g?.code === 'SUIT') {
-        updated[index].itemPrice = 8500;
         updated[index].measurementValues = { Chest: 40, Waist: 34, Shoulder: 18, Sleeve: 25, Length: 31, Hip: 40 };
+      } else if (g?.code === 'KURTA') {
+        updated[index].measurementValues = { Chest: 40, Waist: 34, Length: 40, Sleeve: 25, Shoulder: 18, Neck: 16 };
+      } else if (g?.code === 'BLOUSE') {
+        updated[index].measurementValues = { Bust: 36, Underbust: 30, Shoulder: 14, FrontNeck: 7, BackNeck: 8, Length: 15 };
       } else {
-        updated[index].itemPrice = 2500;
         updated[index].measurementValues = { Chest: 40, Waist: 34, Neck: 16, Sleeve: 25, Shoulder: 18, Length: 30 };
       }
     }
@@ -221,7 +255,7 @@ export const OrderWizardPage: React.FC = () => {
       ...items,
       {
         garmentTypeId: defaultGarment ? defaultGarment.id : '',
-        itemPrice: defaultGarment?.code === 'PANT' ? 2200 : 2500,
+        itemPrice: defaultGarment ? Number(defaultGarment.defaultPrice) || 2500 : 2500,
         stitchingCharge: 0,
         fabricCharge: 0,
         quantity: 1,
@@ -497,20 +531,58 @@ export const OrderWizardPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-semibold text-slate-700">Garment Type *</label>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[11px] font-semibold text-slate-700">Garment Type *</label>
+                      <Link
+                        to="/styles?tab=garments"
+                        target="_blank"
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-medium hover:underline inline-flex items-center gap-0.5"
+                      >
+                        + Manage Types
+                      </Link>
+                    </div>
                     <select
                       value={item.garmentTypeId}
                       onChange={(e) => handleGarmentTypeChange(idx, e.target.value)}
                       className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs bg-white focus:border-blue-500 focus:outline-hidden"
                       required
                     >
-                      <option value="">-- Choose Garment Type --</option>
+                      {loading ? (
+                        <option value="">Loading garment types...</option>
+                      ) : garmentLoadingError ? (
+                        <option value="">Error loading garment types</option>
+                      ) : garmentTypes.length === 0 ? (
+                        <option value="">No garment types configured yet</option>
+                      ) : (
+                        <option value="">-- Choose Garment Type --</option>
+                      )}
                       {garmentTypes.map((g) => (
                         <option key={g.id} value={g.id}>
                           {g.name} ({g.category})
                         </option>
                       ))}
                     </select>
+                    {garmentTypes.length === 0 && !loading && (
+                      <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                        <span>No garment types found.</span>
+                        <Link to="/styles?tab=garments" className="font-bold underline text-blue-600">
+                          Add in Styles & Designs
+                        </Link>
+                      </p>
+                    )}
+                    {garmentLoadingError && (
+                      <div className="mt-1 flex items-center justify-between text-[10px] text-rose-600">
+                        <span>Failed to fetch garment types.</span>
+                        <button
+                          type="button"
+                          onClick={() => loadMasterData()}
+                          className="font-bold underline text-blue-600 cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>

@@ -87,6 +87,9 @@ export class SubscriptionService {
     if (!sub) {
       logger.info(`[SubscriptionService] Provisioning new TRIAL subscription for tenant: ${tenantId}`);
       sub = await this.createTrialSubscription(tenantId);
+    } else if (sub.status === SubscriptionStatus.PENDING && !sub.trialUsed) {
+      const trialRes = await this.startTrial(tenantId);
+      sub = trialRes.subscription;
     }
 
     // Evaluate trial expiration idempotently
@@ -367,7 +370,10 @@ export class SubscriptionService {
 
     let purgeResult = null;
     if (options?.clearDemo) {
-      purgeResult = await purgeTenantDemoData(tenantId);
+      const tenantRecord = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      if (tenantRecord?.isDemo) {
+        purgeResult = await purgeTenantDemoData(tenantId);
+      }
     }
 
     // Audit Log for confirmed subscription activation
@@ -383,7 +389,7 @@ export class SubscriptionService {
           paymentId: options?.paymentId,
           paymentProvider: options?.paymentProvider || 'razorpay',
           trialUsed: true,
-          demoPurged: options?.clearDemo ?? false
+          demoPurged: !!purgeResult
         }
       }
     }).catch((err) => logger.error('[SubscriptionService] Failed to record subscription activation audit log', err));

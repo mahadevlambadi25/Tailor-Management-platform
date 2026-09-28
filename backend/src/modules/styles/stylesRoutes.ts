@@ -11,6 +11,7 @@ router.use(tenantContext, authGuard, subscriptionGuard);
 
 router.get('/', StylesController.list);
 router.post('/', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), StylesController.create);
+router.delete('/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), StylesController.delete);
 router.post('/favourites', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER, RoleType.RECEPTIONIST), StylesController.toggleCustomerFavourite);
 
 export default router;

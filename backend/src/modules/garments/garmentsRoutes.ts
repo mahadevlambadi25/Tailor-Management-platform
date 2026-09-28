@@ -11,5 +11,7 @@ router.use(tenantContext, authGuard, subscriptionGuard);
 
 router.get('/', GarmentsController.list);
 router.post('/', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), GarmentsController.create);
+router.put('/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), GarmentsController.update);
+router.delete('/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), GarmentsController.delete);
 
 export default router;

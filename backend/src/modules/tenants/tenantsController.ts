@@ -161,7 +161,7 @@ export class TenantsController {
 
       return res.json({
         success: true,
-        message: 'Subscription checkout initiated. Payment is pending confirmation. Demo data is retained until payment succeeds.',
+        message: 'Subscription checkout initiated. Payment is pending confirmation. All your workspace data is safely preserved.',
         data: {
           subscription,
           checkoutSessionId: `sess_${Date.now()}_${tenantId.substring(0, 6)}`,
@@ -172,7 +172,7 @@ export class TenantsController {
     } catch (err) { next(err); }
   }
 
-  // 2. Subscription Cancel: Customer abandons checkout. Status CANCELLED. Demo data is NOT deleted!
+  // 2. Subscription Cancel: Customer abandons checkout. Status CANCELLED.
   static async cancelSubscription(req: Request, res: Response, next: NextFunction) {
     try {
       const tenantId = req.tenantId!;
@@ -184,7 +184,7 @@ export class TenantsController {
 
       return res.json({
         success: true,
-        message: 'Subscription checkout was cancelled. No payment charged. Demo data has been retained.',
+        message: 'Subscription checkout was cancelled. No payment charged. All your workspace data remains intact.',
         data: {
           subscription,
           status: 'CANCELLED',
@@ -194,7 +194,7 @@ export class TenantsController {
     } catch (err) { next(err); }
   }
 
-  // 3. Subscription Fail: Payment gateway reports card decline or error. Status PAST_DUE. Demo data is NOT deleted!
+  // 3. Subscription Fail: Payment gateway reports card decline or error. Status PAST_DUE.
   static async failSubscription(req: Request, res: Response, next: NextFunction) {
     try {
       const tenantId = req.tenantId!;
@@ -207,7 +207,7 @@ export class TenantsController {
 
       return res.json({
         success: true,
-        message: `Subscription payment failed: ${reason}. Demo data has been retained.`,
+        message: `Subscription payment failed: ${reason}. All your workspace data remains intact.`,
         data: {
           subscription,
           status: 'PAST_DUE',
@@ -247,8 +247,12 @@ export class TenantsController {
         }
       });
 
-      // ONLY AFTER CONFIRMED SUCCESSFUL PAYMENT: Execute atomic deletion of demo data
-      const purgeResult = await purgeTenantDemoData(tenantId);
+      // For demo tenants only: execute atomic deletion of demo data upon payment confirmation
+      const tenantRecord = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      let purgeResult = { deletedOrdersCount: 0, deletedCustomersCount: 0, deletedAppointmentsCount: 0, deletedInventoryCount: 0 };
+      if (tenantRecord?.isDemo) {
+        purgeResult = await purgeTenantDemoData(tenantId);
+      }
 
       // Audit Log
       await prisma.auditLog.create({
@@ -262,9 +266,13 @@ export class TenantsController {
         }
       });
 
+      const message = tenantRecord?.isDemo && (purgeResult.deletedOrdersCount > 0 || purgeResult.deletedCustomersCount > 0)
+        ? `Subscription payment confirmed and activated! Demo records cleared. Your atelier is ready for production.`
+        : `Subscription payment confirmed and activated! Your workspace is ready for production.`;
+
       return res.json({
         success: true,
-        message: `Subscription payment confirmed and activated! All demo data has been purged (${purgeResult.deletedOrdersCount} orders, ${purgeResult.deletedCustomersCount} clients, ${purgeResult.deletedAppointmentsCount} appointments, ${purgeResult.deletedInventoryCount} inventory items removed). Your atelier is now ready for real production orders.`,
+        message,
         data: {
           subscription,
           paymentId,

@@ -5,6 +5,7 @@ import { RoleType } from '@prisma/client';
 import { prisma } from '../../core/prisma';
 import { config, ROLE_PERMISSIONS } from '../../config';
 import { SubscriptionService } from '../subscriptions/subscriptionService';
+import { provisionDefaultGarmentsForTenant } from '../garments/garmentCatalogService';
 import { logger } from '../../core/logger';
 
 export interface GoogleProfile {
@@ -260,8 +261,11 @@ export class GoogleAuthService {
       }
     });
 
-    // Initialize unused-trial subscription (PENDING, trialUsed: false)
-    await SubscriptionService.createInitialSubscription(newTenant.id);
+    // Automatically activate 14-day free trial on clean registration
+    await SubscriptionService.startTrial(newTenant.id);
+
+    // Provision default master garment catalog & starter style cuts
+    await provisionDefaultGarmentsForTenant(newTenant.id);
 
     // Cryptographically secure random password hash for OAuth account
     const randomPassword = crypto.randomBytes(32).toString('hex');

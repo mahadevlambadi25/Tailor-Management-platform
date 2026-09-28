@@ -54,10 +54,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
               <span className="hidden sm:inline rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 uppercase">
                 V1 SaaS
               </span>
-              {tenant?.demoStats?.hasDemoData && (
+              {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true') && tenant?.isDemo && tenant?.demoStats?.hasDemoData && (
                 <span 
                   onClick={() => navigate('/settings')}
-                  title="Demo sample data loaded. Click to open Settings."
+                  title="Demo sample data loaded (Development only)."
                   className="cursor-pointer rounded-full bg-amber-100 text-amber-800 px-2 py-0.2 text-[9px] font-bold uppercase tracking-wider border border-amber-300 hover:bg-amber-200 transition hidden sm:inline-flex"
                 >
                   Demo ({tenant.demoStats.demoOrdersCount})

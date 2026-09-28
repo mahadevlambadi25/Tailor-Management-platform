@@ -223,7 +223,7 @@ export class SubscriptionsController {
 
       return res.status(200).json({
         success: true,
-        message: '14-Day Free Trial activated successfully. Explore the system with sample data.',
+        message: '14-Day Free Trial activated successfully. Welcome to Tailor Management.',
         data: {
           subscription: summary,
           purgeResult

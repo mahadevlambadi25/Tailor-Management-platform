@@ -8,6 +8,7 @@ import { notificationService } from '../notifications/notificationService';
 import { NotificationChannel, RoleType } from '@prisma/client';
 import { GoogleAuthService } from './googleAuthService';
 import { SubscriptionService } from '../subscriptions/subscriptionService';
+import { provisionDefaultGarmentsForTenant } from '../garments/garmentCatalogService';
 
 export class AuthController {
   // Staff Login
@@ -230,8 +231,11 @@ export class AuthController {
         }
       });
 
-      // Initialize unused-trial subscription (PENDING, trialUsed: false)
-      await SubscriptionService.createInitialSubscription(newTenant.id);
+      // Automatically activate 14-day free trial on clean registration
+      await SubscriptionService.startTrial(newTenant.id);
+
+      // Provision default master garment catalog & starter style cuts
+      await provisionDefaultGarmentsForTenant(newTenant.id);
 
       const passwordHash = await bcrypt.hash(password, 10);
 

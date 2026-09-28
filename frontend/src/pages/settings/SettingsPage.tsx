@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
 import { api } from '../../api/client';
 import { 
   Building2, Sliders, ShieldCheck, DollarSign, 
   Save, CheckCircle2, AlertCircle, RefreshCw, Layers,
-  Crown, Database, Trash2, Sparkles
+  Crown, Database, Trash2, Sparkles, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const { tenant, refreshTenant } = useTenant();
+  const isDev = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true';
   const [loading, setLoading] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(false);
   const [demoActionLoading, setDemoActionLoading] = useState(false);
   const [subscribingLoading, setSubscribingLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -85,7 +89,7 @@ export default function SettingsPage() {
     setErrorMsg('');
     try {
       const res = await api.post('/tenants/demo-data/clear');
-      setSuccessMsg(res.data.message || 'All demo records have been completely purged from your atelier.');
+      setSuccessMsg(res.data.message || 'Demo records cleared.');
       await refreshTenant();
     } catch (err: any) {
       setErrorMsg(err.response?.data?.error || err.message || 'Failed to clear demo data');
@@ -96,7 +100,7 @@ export default function SettingsPage() {
 
   const handleSubscribe = async () => {
     if (subscribingLoading) return;
-    if (!window.confirm('Confirm and activate Pro Subscription? Only upon confirmed payment will demo data be purged, preserving all real customer records.')) {
+    if (!window.confirm('Confirm and activate Pro Subscription for this account?')) {
       return;
     }
     setSubscribingLoading(true);
@@ -107,7 +111,7 @@ export default function SettingsPage() {
         planName: 'PRO_ENTERPRISE_ACTIVE',
         paymentId: `PAY_CONFIRMED_${Date.now()}`
       });
-      setSuccessMsg(res.data.message || 'Subscription successfully confirmed and activated! All demo data has been purged.');
+      setSuccessMsg(res.data.message || 'Subscription successfully activated!');
       await refreshTenant();
     } catch (err: any) {
       setErrorMsg(err.response?.data?.error || err.message || 'Failed to activate subscription');
@@ -221,7 +225,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Subscription & Demo Data Lifecycle */}
+      {/* Subscription Section (Clean Production SaaS Experience) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center space-x-3">
@@ -230,118 +234,107 @@ export default function SettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white tracking-tight">Subscription & Demo Data Lifecycle</h2>
+                <h2 className="text-base font-bold text-white tracking-tight">Subscription</h2>
                 <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full border ${
                   tenant?.subscription?.status === 'ACTIVE'
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                     : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 }`}>
-                  {tenant?.subscription?.status === 'ACTIVE' ? 'ACTIVE LICENSE' : (tenant?.subscription?.status || 'TRIAL_MODE')}
+                  {tenant?.subscription?.status === 'ACTIVE'
+                    ? `${tenant.subscription.planName || 'ACTIVE'} PLAN`
+                    : '14-DAY FREE TRIAL'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Plan: <span className="font-semibold text-white">{tenant?.subscription?.planName || 'FREE_TRIAL'}</span>
+                Current Plan: <span className="font-semibold text-white">{tenant?.subscription?.planName || 'FREE_TRIAL'}</span>
                 {' • '}
-                Capacity: Unlimited Bespoke Orders & Production Tracking
+                {tenant?.subscription?.status === 'ACTIVE'
+                  ? 'All atelier features & capacity unlocked'
+                  : "You're currently using your 14-day free trial."}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div>
             <button
               type="button"
-              onClick={handleSimulatePending}
-              disabled={subscribingLoading}
-              title="Test payment safety: initiating checkout does NOT delete demo data"
-              className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs tracking-wide transition disabled:opacity-50"
+              onClick={() => navigate('/subscription')}
+              className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs tracking-wide shadow-md transition cursor-pointer"
             >
-              <span>Test Checkout (Pending)</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSimulateFailed}
-              disabled={subscribingLoading}
-              title="Test payment safety: failed payment does NOT delete demo data"
-              className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 border border-rose-800/80 font-medium text-xs tracking-wide transition disabled:opacity-50"
-            >
-              <span>Simulate Failed</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSubscribe}
-              disabled={subscribingLoading}
-              className="inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs tracking-wide shadow-md transition disabled:opacity-50"
-            >
-              {subscribingLoading ? (
-                <RefreshCw size={15} className="animate-spin" />
-              ) : (
-                <Sparkles size={15} />
-              )}
-              <span>Confirm & Activate Pro</span>
+              <Sparkles size={15} />
+              <span>{tenant?.subscription?.status === 'ACTIVE' ? 'Manage Subscription' : 'View Plans'}</span>
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          {/* Demo Data Status Banner */}
-          <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-            tenant?.demoStats?.hasDemoData
-              ? 'bg-amber-50 border-amber-200 text-amber-900'
-              : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
-            <div className="flex items-start space-x-3">
-              <Database size={20} className={tenant?.demoStats?.hasDemoData ? 'text-amber-600 shrink-0 mt-0.5' : 'text-slate-400 shrink-0 mt-0.5'} />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold">
-                    {tenant?.demoStats?.hasDemoData ? 'Demo / Sample Records Active' : 'Clean Production Slate'}
-                  </span>
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
-                    tenant?.demoStats?.hasDemoData ? 'bg-amber-200 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {tenant?.demoStats?.hasDemoData ? `${tenant.demoStats.demoOrdersCount} orders • ${tenant.demoStats.demoCustomersCount} clients` : '0 Demo Records'}
-                  </span>
+        <div className="p-6">
+          <p className="text-xs text-slate-600 leading-relaxed">
+            {tenant?.subscription?.status === 'ACTIVE'
+              ? 'Your subscription is active and your atelier workspace is running in full production mode.'
+              : 'Upgrade to a paid plan to continue using Tailor Management after your trial. All your real customer records, orders, and measurements will remain permanently intact.'}
+          </p>
+        </div>
+
+        {/* Developer Demo Controls (ONLY in Development for Explicit Demo Tenants) */}
+        {isDev && tenant?.isDemo && (
+          <div className="border-t border-slate-100 p-4 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setShowDevTools(!showDevTools)}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center justify-between w-full"
+            >
+              <span className="flex items-center gap-1.5 text-amber-700">
+                <Database size={14} />
+                <span>Developer Testing Tools (Demo Atelier Only)</span>
+              </span>
+              {showDevTools ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showDevTools && (
+              <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleLoadDemoData}
+                    disabled={demoActionLoading}
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 shadow-xs inline-flex items-center gap-1"
+                  >
+                    {demoActionLoading ? <RefreshCw size={12} className="animate-spin" /> : <Database size={12} />}
+                    <span>Load Demo Data</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearDemoData}
+                    disabled={demoActionLoading}
+                    className="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-medium text-rose-700 shadow-xs inline-flex items-center gap-1"
+                  >
+                    <Trash2 size={12} />
+                    <span>Clear Demo Data</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSimulatePending}
+                    disabled={subscribingLoading}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium"
+                  >
+                    Simulate Checkout (Pending)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSimulateFailed}
+                    disabled={subscribingLoading}
+                    className="px-3 py-1.5 rounded-lg bg-rose-900 text-white text-xs font-medium"
+                  >
+                    Simulate Failed
+                  </button>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {tenant?.demoStats?.hasDemoData
-                    ? 'Sample garments (Bespoke 2-Piece Suit, Silk Blouse, Cotton Shirt) across cutting, stitching, trial and payments are currently loaded for exploration. When you activate subscription or click Clear, all demo records will be purged.'
-                    : 'Your atelier database is pristine with no demo data. Real customers and production orders are completely isolated and safe.'}
-                </p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleLoadDemoData}
-                disabled={demoActionLoading || subscribingLoading}
-                className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition shadow-xs disabled:opacity-50 inline-flex items-center space-x-1.5"
-              >
-                {demoActionLoading ? <RefreshCw size={13} className="animate-spin" /> : <Database size={13} />}
-                <span>Load Demo Data</span>
-              </button>
-
-              {tenant?.demoStats?.hasDemoData && (
-                <button
-                  type="button"
-                  onClick={handleClearDemoData}
-                  disabled={demoActionLoading || subscribingLoading}
-                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-semibold text-rose-700 transition shadow-xs disabled:opacity-50 inline-flex items-center space-x-1.5"
-                >
-                  <Trash2 size={13} />
-                  <span>Clear Demo Data</span>
-                </button>
-              )}
-            </div>
+            )}
           </div>
-
-          <div className="text-xs text-slate-500 bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex items-center space-x-2">
-            <AlertCircle size={16} className="text-slate-400 shrink-0" />
-            <span>
-              <strong>Automatic Cleanup Guarantee:</strong> Whenever you upgrade or activate your atelier subscription, the system automatically runs an atomic purge that deletes all demo customers, demo measurements, trial appointments, and sample orders without disturbing any real customer records or accounting ledger entries.
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

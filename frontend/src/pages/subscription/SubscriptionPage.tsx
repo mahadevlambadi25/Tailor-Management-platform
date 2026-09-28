@@ -235,7 +235,7 @@ export const SubscriptionPage: React.FC = () => {
       setPaymentSuccess(null);
       const res = await startTrial();
       if (res.success) {
-        setPaymentSuccess('14-Day Free Trial activated successfully! Demo data has been purged.');
+        setPaymentSuccess('14-Day Free Trial activated successfully! Welcome to Tailor Management.');
         await refreshTenant();
         await fetchBillingHistory();
       } else {
@@ -453,7 +453,7 @@ export const SubscriptionPage: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-slate-900">14-Day Free Trial</h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Explore the system using sample/demo data with zero upfront commitment. When you activate a paid subscription, demo data will be safely removed from your workspace so you can start with a clean production workspace.
+                You're currently on your free trial. Add your own customers, orders, measurements, and production records while you explore Tailor Management. Your business data remains in your workspace when you upgrade to a paid plan.
               </p>
               <div className="pt-2">
                 <button
@@ -519,7 +519,7 @@ export const SubscriptionPage: React.FC = () => {
               </h2>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                Explore the system using sample/demo data. When you activate a paid subscription, demo data will be removed from your workspace so you can start with a clean production workspace. Real customer data and genuine orders you create will always be preserved.
+                You're currently on your free trial. Add your own customers, orders, measurements, and production records while you explore Tailor Management. Your business data remains in your workspace when you upgrade to a paid plan.
               </p>
 
               <div className="text-xs text-slate-500 space-y-0.5 pt-1">
@@ -630,7 +630,7 @@ export const SubscriptionPage: React.FC = () => {
               </h2>
 
               <p className="text-xs text-emerald-800 font-medium">
-                Workspace Clean &amp; Active &bull; Sample demo data has been safely purged. All genuine customer records, measurements, and orders are live.
+                Your subscription is active. Your workspace is ready for production.
               </p>
 
               <div className="text-xs text-slate-500 space-y-0.5 pt-0.5">
@@ -860,10 +860,9 @@ export const SubscriptionPage: React.FC = () => {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-900">Your Data is Safe</h4>
+            <h4 className="text-sm font-bold text-slate-900">Your Business Data is Always Safe</h4>
             <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Subscribing to a paid plan automatically cleans any initial demo data.
-              Your real customer records, orders, measurements, and business data are strictly preserved.
+              All your customer profiles, orders, measurements, and payments remain permanently safe in your workspace when upgrading to a paid plan.
             </p>
           </div>
         </div>

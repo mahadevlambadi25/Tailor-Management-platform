@@ -211,6 +211,26 @@ export class OrdersController {
         });
       }
 
+      // Strictly verify all garment types belong to this tenant
+      const garmentTypeIds = [...new Set(items.map((i: any) => i.garmentTypeId).filter(Boolean))];
+      if (garmentTypeIds.length === 0 || garmentTypeIds.length !== items.length) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'All items must specify a valid garment type.', code: 'MISSING_GARMENT_TYPE' }
+        });
+      }
+
+      const validGarments = await prisma.garmentType.findMany({
+        where: { id: { in: garmentTypeIds }, tenantId, isActive: true }
+      });
+
+      if (validGarments.length !== garmentTypeIds.length) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'One or more selected garment types do not exist or belong to another atelier.', code: 'INVALID_GARMENT_TYPE' }
+        });
+      }
+
       // 1. Calculate Totals for items
       let totalAmount = 0;
       const parsedItems = items.map(item => {
