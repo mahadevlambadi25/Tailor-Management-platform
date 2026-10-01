@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../core/prisma';
 import { RoleType } from '@prisma/client';
-
 import crypto from 'crypto';
+import { config } from '../../config';
+import { track } from '../conversion/funnelService';
 
 export class UsersController {
   static async list(req: Request, res: Response, next: NextFunction) {
@@ -139,6 +140,7 @@ export class UsersController {
           role: true,
           staffCode: true,
           branchId: true,
+          isSample: true,
           createdAt: true
         }
       });
@@ -154,6 +156,14 @@ export class UsersController {
           details: { role: user.role, branchId: user.branchId, email: user.email }
         }
       }).catch(() => {});
+
+      // Conversion V1: Track staff_invited
+      if (config.conversionV1 && !user.isSample) {
+        await track(req.tenantId!, 'staff_invited', {
+          role: user.role,
+          staffId: user.id
+        }, req.user?.id);
+      }
 
       return res.status(201).json({
         success: true,

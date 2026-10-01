@@ -139,7 +139,7 @@ export const CustomerProfilePage: React.FC = () => {
 
             {/* Customer ID (Read-only) */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <label className=" block text-xs font-bold text-slate-600 mb-1 items-center gap-1">
                 <span>Client ID</span>
                 <Lock className="h-3 w-3 text-slate-400" />
               </label>
@@ -150,7 +150,7 @@ export const CustomerProfilePage: React.FC = () => {
 
             {/* Mobile (Immutable login key) */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+              <label className=" block text-xs font-bold text-slate-600 mb-1 items-center gap-1">
                 <span>Registered Mobile Number</span>
                 <Lock className="h-3 w-3 text-slate-400" />
               </label>

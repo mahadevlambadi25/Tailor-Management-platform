@@ -31,16 +31,6 @@ interface LoginPageProps {
   initialMode?: 'login' | 'register';
 }
 
-interface DemoAccount {
-  name: string;
-  role: string;
-  email: string;
-  slug: string;
-  description: string;
-  badge?: string;
-  badgeColor?: string;
-}
-
 interface WorkspaceInfo {
   tenantId: string;
   tenantName: string;
@@ -48,45 +38,6 @@ interface WorkspaceInfo {
   branchName: string;
   role: string;
 }
-
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    name: 'Shop Owner',
-    role: 'SHOP_OWNER',
-    email: 'owner@royalbespoke.com',
-    slug: 'royal-bespoke',
-    description: 'Full atelier ownership, settings, billing & multi-branch control',
-    badge: 'Owner Access',
-    badgeColor: 'bg-blue-100 text-blue-800 border-blue-200'
-  },
-  {
-    name: 'Demo Atelier',
-    role: 'SHOP_OWNER',
-    email: 'owner@demo-tailors.com',
-    slug: 'demo-tailors',
-    description: 'Independent atelier tenant with fresh workshop data',
-    badge: 'NEW ATELIER',
-    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200'
-  },
-  {
-    name: 'Receptionist',
-    role: 'RECEPTIONIST',
-    email: 'receptionist@royalbespoke.com',
-    slug: 'royal-bespoke',
-    description: 'Front-desk orders, client appointments & measurements',
-    badge: 'Front Desk',
-    badgeColor: 'bg-purple-100 text-purple-800 border-purple-200'
-  },
-  {
-    name: 'Master Tailor',
-    role: 'TAILOR',
-    email: 'tailor@royalbespoke.com',
-    slug: 'royal-bespoke',
-    description: 'Workshop production board, cutting & stitching tasks',
-    badge: 'Workshop Floor',
-    badgeColor: 'bg-amber-100 text-amber-800 border-amber-200'
-  }
-];
 
 export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const location = useLocation();
@@ -96,17 +47,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const { tenantSlug, setTenantSlug } = useTenant();
 
   // Environment detection: in production build, Demo Accounts UI is strictly hidden
-  const isDev = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true';
-
   // Mode state: 'login' | 'register'
   const isRegisterRoute = location.pathname === '/register' || initialMode === 'register';
   const [mode, setMode] = useState<'login' | 'register'>(isRegisterRoute ? 'register' : 'login');
-
-  // Sub-tab in Login mode: 'credentials' | 'demo' (only available in development)
-  const tabParam = searchParams.get('tab');
-  const [loginSubTab, setLoginSubTab] = useState<'credentials' | 'demo'>(
-    isDev && tabParam === 'demo' ? 'demo' : 'credentials'
-  );
 
   // Form fields
   const [name, setName] = useState('');
@@ -133,7 +76,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [signingInDemoRole, setSigningInDemoRole] = useState<string | null>(null);
 
   // Clean error message to avoid exposing raw technical errors to users
   const getDisplayError = (raw: string): string => {
@@ -153,13 +95,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       setMode('register');
     } else if (location.pathname === '/login') {
       setMode('login');
-      if (isDev && searchParams.get('tab') === 'demo') {
-        setLoginSubTab('demo');
-      } else {
-        setLoginSubTab('credentials');
-      }
     }
-  }, [location.pathname, searchParams, isDev]);
+  }, [location.pathname]);
 
   // Handle OAuth callback parameters (e.g. ?token=... or ?error=...)
   useEffect(() => {
@@ -213,7 +150,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
     if (targetMode === 'register') {
       navigate('/register', { replace: false });
     } else {
-      setLoginSubTab('credentials');
       navigate('/login', { replace: false });
     }
   };
@@ -313,42 +249,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       setError(err.response?.data?.error?.message || 'Failed to open selected workspace.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // 1-Click Demo Login (Development Only)
-  const handleDemoLogin = async (demo: DemoAccount) => {
-    if (!isDev) return;
-    setError('');
-    setSuccessMsg('');
-    setSigningInDemoRole(demo.name);
-    setLoading(true);
-
-    try {
-      localStorage.setItem('tailor_tenant_slug', demo.slug);
-      setTenantSlug(demo.slug);
-
-      const res = await api.post(
-        '/auth/login',
-        {
-          email: demo.email,
-          password: 'Password@123',
-          tenantSlug: demo.slug
-        },
-        {
-          headers: { 'x-tenant-slug': demo.slug }
-        }
-      );
-
-      if (res.data.success) {
-        login(res.data.data.token, res.data.data.user, res.data.data.permissions);
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || `Failed to sign in to demo account (${demo.name}).`);
-    } finally {
-      setLoading(false);
-      setSigningInDemoRole(null);
     }
   };
 
@@ -580,38 +480,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
               </p>
             </div>
 
-            {/* Sub-Tabs for Login Mode (ONLY in Development Environment) */}
-            {isDev && mode === 'login' && workspaces.length === 0 && (
-              <div className="mb-5 flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
-                <button
-                  type="button"
-                  id="login-tab-credentials"
-                  onClick={() => setLoginSubTab('credentials')}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                    loginSubTab === 'credentials'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  id="login-tab-demo"
-                  onClick={() => setLoginSubTab('demo')}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    loginSubTab === 'demo'
-                      ? 'bg-white text-blue-700 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Demo Accounts</span>
-                  <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">4</span>
-                </button>
-              </div>
-            )}
-
             {/* Clean Error Alert */}
             {error && (
               <div role="alert" className="mb-5 rounded-xl bg-rose-50 p-3.5 text-xs font-medium text-rose-800 border border-rose-200/80 flex items-start gap-2.5 animate-fadeIn">
@@ -677,7 +545,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                   </button>
                 </div>
               </div>
-            ) : mode === 'login' && loginSubTab === 'credentials' ? (
+            ) : mode === 'login' ? (
               /* =============================================================== */
               /* VIEW 2: STANDARD LOGIN CREDENTIALS                              */
               /* =============================================================== */
@@ -746,33 +614,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                     </div>
                   </div>
 
-                  {/* Optional Custom Atelier Slug in Development */}
-                  {isDev && (
-                    <div className="pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setShowAdvancedSlug(!showAdvancedSlug)}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <span>{showAdvancedSlug ? 'Hide custom shop slug' : 'Shop ID / Tenant Slug (optional)'}</span>
-                        {showAdvancedSlug ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                      </button>
-
-                      {showAdvancedSlug && (
-                        <div className="mt-2 relative animate-fadeIn">
-                          <Building2 className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            value={customSlug}
-                            onChange={(e) => setCustomSlug(e.target.value)}
-                            className="block w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3.5 text-xs text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none"
-                            placeholder="e.g. royal-bespoke (auto-detected if empty)"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Submit Button */}
                   <button
                     id="login-submit-button"
@@ -780,7 +621,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 px-4 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 shadow-md shadow-blue-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer mt-2"
                   >
-                    {loading && !signingInDemoRole ? (
+                    {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span>Signing in...</span>
@@ -845,99 +686,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                     className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                   >
                     Create your shop account
-                  </button>
-                </div>
-
-                {/* Quick Toggle to Demo Accounts (Dev Only) */}
-                {isDev && (
-                  <div className="mt-5 pt-4 border-t border-slate-100 text-center">
-                    <button
-                      type="button"
-                      id="explore-demo-accounts-button"
-                      onClick={() => setLoginSubTab('demo')}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Need quick test access? View 4 Demo Accounts →</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : isDev && mode === 'login' && loginSubTab === 'demo' ? (
-              /* =============================================================== */
-              /* VIEW 3: DEMO ACCOUNTS DRAWER (Development Only)                  */
-              /* =============================================================== */
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <span className="text-xs font-bold text-slate-800">4 Ready-to-Use Demo Roles</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setLoginSubTab('credentials')}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
-                  >
-                    ← Back to Sign In
-                  </button>
-                </div>
-
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Click any role to log in instantly and explore the dashboard with sample atelier data:
-                </p>
-
-                <div className="grid grid-cols-1 gap-2.5">
-                  {DEMO_ACCOUNTS.map((demo) => {
-                    const isSigningInThis = signingInDemoRole === demo.name;
-                    return (
-                      <button
-                        key={demo.email}
-                        type="button"
-                        id={`demo-account-${demo.role.toLowerCase()}`}
-                        disabled={loading}
-                        onClick={() => handleDemoLogin(demo)}
-                        className={`text-left p-3 rounded-xl border transition-all relative overflow-hidden group cursor-pointer ${
-                          demo.slug === 'demo-tailors'
-                            ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-500'
-                            : 'border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
-                              {demo.name}
-                            </span>
-                            {demo.badge && (
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-extrabold border ${demo.badgeColor}`}>
-                                {demo.badge}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-semibold text-blue-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                            {isSigningInThis ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <>
-                                <span>Sign In</span>
-                                <ArrowRight className="h-3 w-3" />
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        <div className="text-[11px] font-mono text-slate-600">{demo.email}</div>
-                        <div className="mt-1 text-[10px] text-slate-500 leading-relaxed">{demo.description}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-3 text-center border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setLoginSubTab('credentials')}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                  >
-                    Use standard email & password instead
                   </button>
                 </div>
               </div>

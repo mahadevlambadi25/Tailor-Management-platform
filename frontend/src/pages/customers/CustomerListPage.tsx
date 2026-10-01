@@ -19,6 +19,7 @@ import {
   RefreshCw,
   MessageSquare
 } from 'lucide-react';
+import { CustomerImportModal } from '../../components/conversion/CustomerImportModal';
 
 export const CustomerListPage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -258,13 +259,15 @@ export const CustomerListPage: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
-          >
-            <Upload className="h-3.5 w-3.5 text-slate-500" />
-            Import CSV
-          </button>
+          {import.meta.env.VITE_CONVERSION_V1 !== 'false' && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
+            >
+              <Upload className="h-3.5 w-3.5 text-slate-500" />
+              Import CSV
+            </button>
+          )}
           <button
             onClick={handleExport}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
@@ -775,74 +778,16 @@ export const CustomerListPage: React.FC = () => {
         </div>
       )}
 
-      {/* CSV Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-base font-bold text-slate-900">Import Customers from CSV</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Paste CSV records below. System validates records strictly before committing to database.
-            </p>
-
-            <textarea
-              rows={5}
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              placeholder="firstName,lastName,mobile,email,city&#10;Sunil,Kumar,9811122233,sunil@test.com,Bangalore"
-              className="mt-3 block w-full rounded-lg border border-slate-300 p-2.5 font-mono text-xs focus:border-blue-500 focus:outline-hidden"
-            />
-
-            <div className="mt-3 flex justify-between items-center">
-              <button
-                type="button"
-                onClick={handlePreviewCsv}
-                disabled={importLoading || !csvText.trim()}
-                className="rounded-lg bg-slate-800 px-4 py-1.5 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-50 cursor-pointer"
-              >
-                {importLoading ? 'Validating...' : 'Validate & Preview'}
-              </button>
-            </div>
-
-            {importPreview && (
-              <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-                <div className="flex gap-4 font-bold">
-                  <span className="text-emerald-700">Valid Rows: {importPreview.validCount}</span>
-                  <span className="text-rose-600">Invalid Rows: {importPreview.invalidCount}</span>
-                </div>
-                {importPreview.errors?.length > 0 && (
-                  <div className="mt-2 text-rose-600 space-y-0.5 text-[11px]">
-                    {importPreview.errors.map((e: string, idx: number) => (
-                      <div key={idx}>• {e}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowImportModal(false);
-                  setImportPreview(null);
-                }}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                Close
-              </button>
-              {importPreview?.canCommit && (
-                <button
-                  type="button"
-                  onClick={handleCommitCsv}
-                  disabled={importLoading}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 shadow-md shadow-emerald-500/20"
-                >
-                  Commit {importPreview.validCount} Valid Records
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Phase 7 Customer Import Modal */}
+      {import.meta.env.VITE_CONVERSION_V1 !== 'false' && (
+        <CustomerImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImportSuccess={() => {
+            setShowImportModal(false);
+            fetchCustomers();
+          }}
+        />
       )}
     </div>
   );

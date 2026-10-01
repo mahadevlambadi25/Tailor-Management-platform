@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SubscriptionService, SubscriptionStatus } from '../modules/subscriptions/subscriptionService';
+import { config } from '../config';
+import { track } from '../modules/conversion/funnelService';
 
 /**
  * Subscription Guard Middleware.
@@ -29,6 +31,39 @@ export async function subscriptionGuard(req: Request, res: Response, next: NextF
     if (isActive) {
       (req as any).subscription = subscription;
       return next();
+    }
+
+    // Conversion V1: Expired Trial Read-Only Mode
+    if (config.conversionV1 && subscription.status === SubscriptionStatus.EXPIRED) {
+      const isSafeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(req.method.toUpperCase());
+      if (isSafeMethod) {
+        // Allow read operations: viewing customers, measurements, orders, reports
+        (req as any).subscription = subscription;
+        (req as any).isReadOnlyExpired = true;
+        return next();
+      }
+
+      // Mutating action blocked in expired trial mode
+      await track(tenantId, 'readonly_blocked_action', {
+        method: req.method,
+        path: req.originalUrl,
+        planName: subscription.planName
+      }, req.user?.id);
+
+      return res.status(402).json({
+        success: false,
+        error: {
+          message: 'Your shop is in view-only mode. Continue your plan and pick up right where you left off.',
+          code: 'READONLY_TRIAL_EXPIRED',
+          details: {
+            status: subscription.status,
+            planName: subscription.planName,
+            trialEnd: subscription.trialEnd,
+            readOnly: true,
+            renewable: true
+          }
+        }
+      });
     }
 
     // Subscription is not active (EXPIRED, CANCELLED, PAST_DUE, or PENDING)

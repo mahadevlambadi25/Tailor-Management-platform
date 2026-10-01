@@ -33,13 +33,16 @@ import {
   CheckCircle,
   Shield,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  MessageCircle
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<'ANNUAL' | 'MONTHLY'>('ANNUAL');
+  const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '919999999999';
   const [activeDashboardTab, setActiveDashboardTab] = useState<'overview' | 'kanban' | 'measurements' | 'ledger'>('overview');
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<number>(3); // Default to Cutting
 
@@ -256,7 +259,7 @@ export const LandingPage: React.FC = () => {
 
               {/* Supporting Subheadline */}
               <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Manage customers, measurements, orders, production, payments, and deliveries — all from one powerful tailoring management platform.
+                Manage customers, measurements, orders, production, payments, and deliveries, all from one powerful tailoring management platform.
               </p>
 
               {/* CTAs */}
@@ -269,10 +272,13 @@ export const LandingPage: React.FC = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
-                  href="#dashboard-preview"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-slate-300 text-slate-800 font-semibold text-base hover:bg-slate-100 transition-colors"
+                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi, I run a tailoring shop and want to know more.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-800 font-semibold text-base hover:bg-emerald-100 transition-colors"
                 >
-                  <span>Explore the Platform</span>
+                  <MessageCircle className="h-5 w-5 text-emerald-600" />
+                  <span>Chat on WhatsApp</span>
                 </a>
               </div>
 
@@ -286,129 +292,104 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Hero Visual - Realistic SaaS Dashboard Preview */}
-            <div className="lg:col-span-6">
-              <div className="relative mx-auto max-w-xl lg:max-w-none">
-                
-                {/* Decorative Subtle Ambient Glow */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-2xl blur-xl opacity-70" />
+            {/* Right Column: Hero Visual - Phone Frame Mockup (Measurement -> Order -> Customer Update) */}
+            <div className="lg:col-span-6 flex justify-center">
+              <div className="relative mx-auto w-full max-w-sm sm:max-w-md">
+                {/* Subtle Ambient Glow */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/15 to-emerald-600/15 rounded-[44px] blur-2xl opacity-75" />
 
-                {/* macOS / Web Browser Frame */}
-                <div className="relative rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
-                  
-                  {/* Browser Bar */}
-                  <div className="h-10 border-b border-slate-200 bg-slate-50/90 px-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-rose-400" />
-                      <div className="h-3 w-3 rounded-full bg-amber-400" />
-                      <div className="h-3 w-3 rounded-full bg-emerald-400" />
-                    </div>
-                    <div className="px-4 py-1 rounded-md bg-white border border-slate-200 text-[11px] font-mono text-slate-500 max-w-[220px] truncate select-none shadow-2xs">
-                      app.tailormanagement.com/dashboard
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-xs font-mono">
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-semibold uppercase border border-amber-200">
-                        Demo Preview
-                      </span>
-                    </div>
+                {/* Smartphone Device Frame */}
+                <div className="relative rounded-[40px] border-4 border-slate-900 bg-slate-900 p-3 shadow-2xl shadow-slate-900/20">
+                  {/* Dynamic Island / Speaker Notch */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-900 rounded-full z-20 flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-800" />
                   </div>
 
-                  {/* Mockup Dashboard Content */}
-                  <div className="p-4 sm:p-6 bg-slate-50/50 space-y-4 sm:space-y-5">
+                  <div className="rounded-[32px] bg-slate-50 overflow-hidden pt-6 pb-4 px-3 sm:px-4 space-y-3.5 border border-slate-200/50">
                     
-                    {/* Atelier Header Bar */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-                          <Scissors className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900 leading-tight">Sample Atelier (Demo Workspace)</div>
-                          <div className="text-[10px] text-slate-500">Flagship Boutique • Mumbai (Illustrative)</div>
-                        </div>
-                      </div>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                        Sample Data
+                    {/* Phone Header Status */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1">
+                      <span className="font-bold text-slate-900">Tailor OS Live</span>
+                      <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        In Sync
                       </span>
                     </div>
 
-                    {/* Today's Overview Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                      <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                        <div className="text-[11px] font-medium text-slate-500">Today's Orders (Sample)</div>
-                        <div className="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">12</div>
-                        <div className="text-[10px] text-emerald-600 font-medium mt-0.5">↑ 3 new today</div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                        <div className="text-[11px] font-medium text-slate-500">Ready for Delivery (Sample)</div>
-                        <div className="text-lg sm:text-xl font-extrabold text-teal-600 mt-1">8</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">QC passed</div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                        <div className="text-[11px] font-medium text-slate-500">In Production (Sample)</div>
-                        <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">17</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">Across workshop</div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                        <div className="text-[11px] font-medium text-slate-500">Pending Balance (Sample)</div>
-                        <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">₹24,500</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">4 sample orders</div>
-                      </div>
-                    </div>
-
-                    {/* Production / Order Pipeline Highlight */}
-                    <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                    {/* Step 1: Measurement */}
+                    <div className="rounded-2xl border border-blue-200 bg-white p-3.5 shadow-2xs space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-bold font-mono">
-                            #ORD-1042 (Sample)
-                          </span>
-                          <span className="text-xs font-semibold text-slate-800">
-                            Bespoke 3-Piece Tuxedo
-                          </span>
+                          <div className="h-7 w-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                            1
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">Ramesh Patel</div>
+                            <div className="text-[10px] text-slate-500">Measurement Profile (Inches)</div>
+                          </div>
                         </div>
-                        <span className="text-[11px] text-slate-500">
-                          Client: <span className="font-semibold text-slate-700">Rajesh Kumar (Sample Customer)</span>
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          Saved
                         </span>
                       </div>
-
-                      {/* Visual Pipeline Progression */}
-                      <div className="pt-1">
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1.5">
-                          <span>Production Pipeline (Sample)</span>
-                          <span className="text-blue-600 font-semibold">Stage: Finishing (75%)</span>
-                        </div>
-                        <div className="grid grid-cols-5 gap-1.5">
-                          <div className="h-2 rounded-full bg-emerald-500" title="Cutting Completed" />
-                          <div className="h-2 rounded-full bg-emerald-500" title="Stitching Completed" />
-                          <div className="h-2 rounded-full bg-blue-600 animate-pulse" title="Finishing In-Progress" />
-                          <div className="h-2 rounded-full bg-slate-200" title="Trial Fitting Pending" />
-                          <div className="h-2 rounded-full bg-slate-200" title="Ready for Delivery" />
-                        </div>
-                        <div className="flex justify-between text-[9px] text-slate-500 font-medium mt-1">
-                          <span className="text-emerald-700 font-semibold">Cutting ✓</span>
-                          <span className="text-emerald-700 font-semibold">Stitching ✓</span>
-                          <span className="text-blue-700 font-semibold">Finishing</span>
-                          <span>Trial</span>
-                          <span>Ready</span>
-                        </div>
-                      </div>
-
-                      {/* Delivery Date & Financial Status */}
-                      <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-600">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                          <span>Delivery: <strong className="text-slate-800">Tomorrow, 4:00 PM</strong></span>
-                        </div>
-                        <div className="font-medium text-slate-700">
-                          Advance: <span className="text-emerald-600 font-semibold">₹8,000 (Sample)</span> • Balance: <span className="text-amber-600 font-semibold">₹4,500 (Sample)</span>
-                        </div>
+                      <div className="grid grid-cols-3 gap-1.5 pt-1 text-[11px] font-medium text-slate-700 bg-slate-50 p-2 rounded-xl">
+                        <div><span className="text-slate-400 block text-[9px]">CHEST</span>39.5"</div>
+                        <div><span className="text-slate-400 block text-[9px]">WAIST</span>34.0"</div>
+                        <div><span className="text-slate-400 block text-[9px]">INSEAM</span>31.0"</div>
                       </div>
                     </div>
 
-                    {/* Disclaimer Banner */}
-                    <div className="text-[10px] text-slate-400 text-center pt-1 border-t border-slate-100">
-                      * Sample demonstration data for illustrative preview only. Not connected to real customer records or live tenant databases.
+                    {/* Flow Connector Arrow */}
+                    <div className="flex justify-center -my-1">
+                      <span className="text-slate-300 font-bold text-xs">↓</span>
+                    </div>
+
+                    {/* Step 2: Order Creation */}
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-3.5 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                            2
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">Order #ORD-204</div>
+                            <div className="text-[10px] text-slate-500">Navy 2-Piece Suit</div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          In Cutting
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 text-slate-600">
+                        <span>Due: <strong className="text-slate-900">Friday, 5:00 PM</strong></span>
+                        <span className="font-semibold text-emerald-600">Paid: ₹5,000 / ₹9,500</span>
+                      </div>
+                    </div>
+
+                    {/* Flow Connector Arrow */}
+                    <div className="flex justify-center -my-1">
+                      <span className="text-slate-300 font-bold text-xs">↓</span>
+                    </div>
+
+                    {/* Step 3: Customer WhatsApp Update */}
+                    <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-3.5 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                            <MessageCircle className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">Customer Update Sent</div>
+                            <div className="text-[10px] text-emerald-700">Instant WhatsApp Notification</div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Delivered
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-white border border-emerald-200 p-2.5 text-[11px] text-slate-700 leading-snug">
+                        "Hi Ramesh, your Navy Suit has moved to Cutting. Track live: <span className="text-blue-600 underline">bespoke.me/o/204</span>"
+                      </div>
                     </div>
 
                   </div>
@@ -416,6 +397,126 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 2.5 AT A GLANCE (Desktop Dashboard Showcase)                             */}
+      {/* ========================================================================= */}
+      <section id="dashboard-preview" className="py-16 sm:py-24 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">At A Glance</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight mt-2">
+              Your entire shop on one clear screen.
+            </h2>
+            <p className="text-slate-600 mt-2 text-sm sm:text-base">
+              See today's intake, orders in production, trial dates, and pending balance collections.
+            </p>
+          </div>
+
+          {/* Desktop Web Frame Preview */}
+          <div className="relative mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            {/* Browser Bar */}
+            <div className="h-10 border-b border-slate-200 bg-slate-50 px-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-rose-400" />
+                <div className="h-3 w-3 rounded-full bg-amber-400" />
+                <div className="h-3 w-3 rounded-full bg-emerald-400" />
+              </div>
+              <div className="px-4 py-1 rounded-md bg-white border border-slate-200 text-[11px] font-mono text-slate-500 max-w-[220px] truncate select-none shadow-2xs">
+                app.tailormanagement.com/dashboard
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-400 text-xs font-mono">
+                <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-semibold uppercase border border-amber-200">
+                  Demo Preview
+                </span>
+              </div>
+            </div>
+
+            {/* Dashboard Content */}
+            <div className="p-4 sm:p-6 bg-slate-50/50 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
+                    <Scissors className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 leading-tight">Sample Atelier (Demo Workspace)</div>
+                    <div className="text-[10px] text-slate-500">Flagship Boutique • Mumbai (Illustrative)</div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                  Sample Data
+                </span>
+              </div>
+
+              {/* Today's Overview Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[11px] font-medium text-slate-500">Today's Orders</div>
+                  <div className="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">12</div>
+                  <div className="text-[10px] text-emerald-600 font-medium mt-0.5">3 new today</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[11px] font-medium text-slate-500">Ready for Delivery</div>
+                  <div className="text-lg sm:text-xl font-extrabold text-teal-600 mt-1">8</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">QC passed</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[11px] font-medium text-slate-500">In Production</div>
+                  <div className="text-lg sm:text-xl font-extrabold text-blue-600 mt-1">17</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Across workshop</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[11px] font-medium text-slate-500">Pending Balance</div>
+                  <div className="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">₹24,500</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">4 orders pending</div>
+                </div>
+              </div>
+
+              {/* Pipeline Highlight */}
+              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-bold font-mono">
+                      #ORD-1042
+                    </span>
+                    <span className="text-xs font-semibold text-slate-800">
+                      Bespoke 3-Piece Tuxedo
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500">
+                    Client: <span className="font-semibold text-slate-700">Rajesh Kumar</span>
+                  </span>
+                </div>
+
+                <div className="pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1.5">
+                    <span>Production Pipeline</span>
+                    <span className="text-blue-600 font-semibold">Stage: Finishing (75%)</span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    <div className="h-2 rounded-full bg-emerald-500" />
+                    <div className="h-2 rounded-full bg-emerald-500" />
+                    <div className="h-2 rounded-full bg-blue-600 animate-pulse" />
+                    <div className="h-2 rounded-full bg-slate-200" />
+                    <div className="h-2 rounded-full bg-slate-200" />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-600">
+                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Delivery: <strong className="text-slate-800">Tomorrow, 4:00 PM</strong></span>
+                  </div>
+                  <div className="font-medium text-slate-700">
+                    Advance: <span className="text-emerald-600 font-semibold">₹8,000</span> • Balance: <span className="text-amber-600 font-semibold">₹4,500</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -659,7 +760,7 @@ export const LandingPage: React.FC = () => {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Unbroken Digital Lifecycle</span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-2">
-              From measurement to delivery — everything stays connected.
+              From measurement to delivery - everything stays connected.
             </h2>
             <p className="text-slate-300 mt-3 text-base sm:text-lg">
               Every garment moves through a structured 10-stage lifecycle, keeping team handoffs aligned and delivery milestones predictable.
@@ -748,7 +849,7 @@ export const LandingPage: React.FC = () => {
             </p>
             <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-200/80 text-slate-700 text-xs font-medium">
               <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-              <span>Interactive preview with sample demo data — Not connected to live tenant records</span>
+              <span>Interactive preview with sample demo data (Not connected to live tenant records)</span>
             </div>
 
             {/* Interactive Module Switcher */}
@@ -784,7 +885,7 @@ export const LandingPage: React.FC = () => {
                 <div className="h-3 w-3 rounded-full bg-slate-300" />
                 <div className="h-3 w-3 rounded-full bg-slate-300" />
                 <span className="ml-3 text-xs font-semibold text-slate-700 hidden sm:inline">
-                  Sample Atelier (Demo Workspace) — Tailor Management Platform
+                  Sample Atelier (Demo Workspace) | Tailor Management Platform
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -1379,7 +1480,7 @@ export const LandingPage: React.FC = () => {
                 Keep your customers informed.
               </h2>
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-                Give your bespoke clients instant transparency. Customers securely check order progress, fitting schedules, and payment balances directly from their smartphones — without repeatedly calling your front desk.
+                Give your bespoke clients instant transparency. Customers securely check order progress, fitting schedules, and payment balances directly from their smartphones, without repeatedly calling your front desk.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-4 pt-3">
@@ -1488,15 +1589,51 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Monthly / Annual Toggle */}
+          <div className="flex flex-col items-center justify-center gap-3 mb-12">
+            <div className="inline-flex items-center rounded-xl bg-slate-200/70 p-1 border border-slate-300">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('MONTHLY')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  billingCycle === 'MONTHLY'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Monthly Billing
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('ANNUAL')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  billingCycle === 'ANNUAL'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Annual Billing</span>
+                <span className="text-[10px] bg-amber-300 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full">
+                  Save 2 Months
+                </span>
+              </button>
+            </div>
+            {billingCycle === 'ANNUAL' && (
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                Pay yearly, get 2 months free
+              </span>
+            )}
+          </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             
-            {/* Plan 1: FREE_TRIAL */}
+            {/* Plan 1: Free Trial */}
             <div className="p-7 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
               <div className="space-y-4">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
                   Trial Tier
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-950 font-mono">FREE_TRIAL</h3>
+                <h3 className="text-xl font-extrabold text-slate-950">Free Trial</h3>
                 <p className="text-xs text-slate-500">Explore core tailoring operations with full feature access.</p>
                 <div className="pt-2">
                   <span className="text-3xl font-extrabold text-slate-950">₹0</span>
@@ -1544,14 +1681,18 @@ export const LandingPage: React.FC = () => {
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
                   Single Branch
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-950 font-mono">STARTER</h3>
+                <h3 className="text-xl font-extrabold text-slate-950">Starter</h3>
                 <p className="text-xs text-slate-500">For independent tailoring studios and neighborhood shops.</p>
                 <div className="pt-2">
-                  <span className="text-3xl font-extrabold text-slate-950">₹999</span>
-                  <span className="text-xs text-slate-500 ml-1">/ mo (indicative)</span>
+                  <span className="text-3xl font-extrabold text-slate-950">
+                    {billingCycle === 'ANNUAL' ? '₹9,990' : '₹999'}
+                  </span>
+                  <span className="text-xs text-slate-500 ml-1">
+                    {billingCycle === 'ANNUAL' ? '/ year' : '/ month'}
+                  </span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-500">
-                  Standard tier rate
+                  {billingCycle === 'ANNUAL' ? 'Billed annually' : 'Billed monthly'}
                 </div>
                 <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-700">
                   <div className="flex items-center gap-2">
@@ -1590,20 +1731,27 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Plan 3: PROFESSIONAL */}
-            <div className="p-7 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+            {/* Plan 3: PROFESSIONAL (Most popular) */}
+            <div className="relative p-7 rounded-2xl border-2 border-blue-600 bg-white flex flex-col justify-between shadow-xl shadow-blue-500/10 ring-4 ring-blue-50">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+                Most popular
+              </div>
               <div className="space-y-4">
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
                   High Volume
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-950 font-mono">PROFESSIONAL</h3>
+                <h3 className="text-xl font-extrabold text-slate-950">Professional</h3>
                 <p className="text-xs text-slate-500">For busy bespoke ateliers and growing multi-cutter workshops.</p>
                 <div className="pt-2">
-                  <span className="text-3xl font-extrabold text-slate-950">₹2,499</span>
-                  <span className="text-xs text-slate-500 ml-1">/ mo (indicative)</span>
+                  <span className="text-3xl font-extrabold text-slate-950">
+                    {billingCycle === 'ANNUAL' ? '₹24,990' : '₹2,499'}
+                  </span>
+                  <span className="text-xs text-slate-500 ml-1">
+                    {billingCycle === 'ANNUAL' ? '/ year' : '/ month'}
+                  </span>
                 </div>
-                <div className="text-[11px] font-semibold text-slate-500">
-                  Standard tier rate
+                <div className="text-[11px] font-semibold text-blue-700">
+                  {billingCycle === 'ANNUAL' ? 'Billed annually (Save ₹4,998)' : 'Billed monthly'}
                 </div>
                 <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-700">
                   <div className="flex items-center gap-2">
@@ -1635,7 +1783,7 @@ export const LandingPage: React.FC = () => {
               <div className="pt-8">
                 <Link
                   to="/register"
-                  className="w-full text-center py-2.5 px-4 rounded-xl bg-slate-950 text-white font-semibold text-sm hover:bg-blue-600 transition-colors block shadow-xs"
+                  className="w-full text-center py-2.5 px-4 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all block"
                 >
                   Select Professional
                 </Link>
@@ -1648,14 +1796,18 @@ export const LandingPage: React.FC = () => {
                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
                   Enterprise Network
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-950 font-mono">BUSINESS</h3>
+                <h3 className="text-xl font-extrabold text-slate-950">Business</h3>
                 <p className="text-xs text-slate-500">For multi-city retail chains and centralized production factories.</p>
                 <div className="pt-2">
-                  <span className="text-3xl font-extrabold text-slate-950">₹5,999</span>
-                  <span className="text-xs text-slate-500 ml-1">/ mo (indicative)</span>
+                  <span className="text-3xl font-extrabold text-slate-950">
+                    {billingCycle === 'ANNUAL' ? '₹59,990' : '₹5,999'}
+                  </span>
+                  <span className="text-xs text-slate-500 ml-1">
+                    {billingCycle === 'ANNUAL' ? '/ year' : '/ month'}
+                  </span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-500">
-                  Standard tier rate
+                  {billingCycle === 'ANNUAL' ? 'Billed annually (Save ₹11,998)' : 'Billed monthly'}
                 </div>
                 <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-700">
                   <div className="flex items-center gap-2">
@@ -1817,6 +1969,18 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Floating WhatsApp button on mobile */}
+      <a
+        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi, I run a tailoring shop and want to know more.')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="md:hidden fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-white font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition-all"
+        aria-label="Chat on WhatsApp"
+      >
+        <MessageCircle className="h-5 w-5" />
+        <span className="text-xs">Chat with us</span>
+      </a>
 
     </div>
   );

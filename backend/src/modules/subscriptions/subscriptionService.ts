@@ -3,6 +3,7 @@ import { logger } from '../../core/logger';
 import { config } from '../../config';
 import { SubscriptionStatus } from '@prisma/client';
 import { purgeTenantDemoData } from '../demo/demoService';
+import { track } from '../conversion/funnelService';
 
 export { SubscriptionStatus };
 
@@ -273,6 +274,11 @@ export class SubscriptionService {
             status: SubscriptionStatus.EXPIRED,
             trialUsed: true
           }
+        });
+
+        // Conversion V1: Track trial_expired
+        await track(subscription.tenantId, 'trial_expired', {
+          planName: subscription.planName
         });
 
         // Audit Log

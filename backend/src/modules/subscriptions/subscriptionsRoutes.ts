@@ -34,9 +34,4 @@ router.get('/transactions', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER),
 router.get('/invoices', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), SubscriptionsController.getInvoices);
 router.get('/invoices/:id', requireRoles(RoleType.SHOP_OWNER, RoleType.MANAGER), SubscriptionsController.getInvoiceById);
 
-// Development/testing simulation route (strictly disabled in production)
-if (config.nodeEnv !== 'production') {
-  router.post('/dev-simulate', requireRoles(RoleType.SHOP_OWNER), SubscriptionsController.devSimulate);
-}
-
 export default router;

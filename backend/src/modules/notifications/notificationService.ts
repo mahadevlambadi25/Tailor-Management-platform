@@ -16,7 +16,10 @@ export class NotificationService {
   async send(payload: NotificationPayload) {
     logger.info(`[NotificationService] Sending ${payload.channel} to ${payload.recipient}: ${payload.title}`);
     
-    // Create record in database
+    // If external messaging gateway (Twilio, WhatsApp Business API, Sendgrid, etc.) is not configured,
+    // keep status as PENDING and do not pretend delivery was successful.
+    const isGatewayConfigured = false; // Real provider integration pending configuration
+
     const notif = await prisma.notification.create({
       data: {
         tenantId: payload.tenantId,
@@ -26,11 +29,16 @@ export class NotificationService {
         recipient: payload.recipient,
         title: payload.title,
         message: payload.message,
-        status: NotificationStatus.SENT
+        status: isGatewayConfigured ? NotificationStatus.SENT : NotificationStatus.PENDING
       }
     });
 
-    // Adapter dispatch
+    if (!isGatewayConfigured) {
+      logger.info(`[NotificationService] Messaging integration is not configured. Queued as PENDING for ${payload.recipient}`);
+      return notif;
+    }
+
+    // Adapter dispatch (when configured)
     if (payload.channel === NotificationChannel.WHATSAPP) {
       await this.sendWhatsApp(payload.recipient, payload.message);
     } else if (payload.channel === NotificationChannel.EMAIL) {
@@ -41,15 +49,13 @@ export class NotificationService {
   }
 
   private async sendWhatsApp(phone: string, msg: string) {
-    // WhatsApp adapter hook (e.g. Twilio / Meta Cloud API)
-    logger.info(`[WhatsAppAdapter] Simulated message delivered to ${phone}: "${msg}"`);
-    return true;
+    logger.info(`[WhatsAppAdapter] Messaging gateway not configured for ${phone}`);
+    return false;
   }
 
   private async sendEmail(email: string, subject: string, body: string) {
-    // Email adapter hook (e.g. Sendgrid / SMTP)
-    logger.info(`[EmailAdapter] Simulated email delivered to ${email}: "${subject}"`);
-    return true;
+    logger.info(`[EmailAdapter] Messaging gateway not configured for ${email}`);
+    return false;
   }
 }
 

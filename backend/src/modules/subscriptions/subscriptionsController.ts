@@ -276,43 +276,4 @@ export class SubscriptionsController {
       next(err);
     }
   }
-
-  /**
-   * Development-only state simulation helper.
-   * Completely disabled in production.
-   */
-  static async devSimulate(req: Request, res: Response, next: NextFunction) {
-    try {
-      if (config.nodeEnv === 'production') {
-        return res.status(404).json({
-          success: false,
-          error: { message: 'Not found', code: 'NOT_FOUND' }
-        });
-      }
-
-      const tenantId = req.tenantId!;
-      const { status, planName } = req.body;
-
-      if (!status || !Object.values(SubscriptionStatus).includes(status)) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: `Invalid simulation status. Allowed: ${Object.values(SubscriptionStatus).join(', ')}`,
-            code: 'INVALID_STATUS'
-          }
-        });
-      }
-
-      const updated = await SubscriptionService.devSimulateStatus(tenantId, status, planName);
-      const summary = await SubscriptionService.getSubscriptionSummary(tenantId);
-
-      return res.json({
-        success: true,
-        message: `[DEV ONLY] Tenant subscription simulated to ${status}.`,
-        data: summary
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
 }

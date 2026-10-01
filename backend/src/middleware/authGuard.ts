@@ -20,6 +20,13 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
       req.tenantId = decoded.tenantId;
     }
 
+    if (decoded.isSample) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Sample staff accounts cannot access APIs.', code: 'SAMPLE_STAFF_LOGIN_BLOCKED' }
+      });
+    }
+
     req.user = decoded;
     next();
   } catch (err: any) {

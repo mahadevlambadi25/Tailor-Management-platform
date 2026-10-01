@@ -77,12 +77,18 @@ api.interceptors.response.use(
         window.location.replace('/login');
       }
     } else if (err.response?.status === 402) {
-      // 402 SUBSCRIPTION_REQUIRED: Tenant subscription or trial has lapsed.
-      // Do NOT log out user! Preserve credentials and navigate to renewal/subscription page.
-      const isSubscriptionPage = window.location.pathname.startsWith('/subscription');
-      if (!isSubscriptionPage && !isPublicPage && !isRedirecting) {
-        isRedirecting = true;
-        window.location.replace('/subscription?expired=true');
+      // 402 SUBSCRIPTION_REQUIRED / READONLY_TRIAL_EXPIRED:
+      // Do NOT log out user!
+      if (err.response?.data?.error?.code === 'READONLY_TRIAL_EXPIRED') {
+        window.dispatchEvent(new CustomEvent('readonly_blocked_action', { detail: err.response?.data }));
+      } else {
+        const isUpgradeOrSubPage =
+          window.location.pathname.startsWith('/subscription') ||
+          window.location.pathname.startsWith('/upgrade');
+        if (!isUpgradeOrSubPage && !isPublicPage && !isRedirecting) {
+          isRedirecting = true;
+          window.location.replace('/upgrade');
+        }
       }
     }
     return Promise.reject(err);

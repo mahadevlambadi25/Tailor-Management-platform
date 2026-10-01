@@ -25,6 +25,7 @@ import reportsRoutes from './modules/reports/reportsRoutes';
 import documentsRoutes from './modules/documents/documentsRoutes';
 import customerPortalRoutes from './modules/customer-portal/customerPortalRoutes';
 import importExportRoutes from './modules/import-export/importExportRoutes';
+import conversionRoutes from './modules/conversion/conversionRoutes';
 
 export const app = express();
 
@@ -112,6 +113,7 @@ app.use('/api/v1/documents', documentsRoutes);
 app.use('/api/v1/portal', customerPortalRoutes);
 app.use('/api/v1/customer-portal', customerPortalRoutes);
 app.use('/api/v1/import-export', importExportRoutes);
+app.use('/api/v1/conversion', conversionRoutes);
 
 // Catch-all 404 Handler for Unmatched Routes
 app.use((req: express.Request, res: express.Response) => {

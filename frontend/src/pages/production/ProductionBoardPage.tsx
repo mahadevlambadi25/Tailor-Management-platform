@@ -942,7 +942,7 @@ export const ProductionBoardPage: React.FC = () => {
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
               <AlertTriangle className="h-5 w-5" />
-              Flag Production Delay — Mandatory Requirements
+              Flag Production Delay: Mandatory Requirements
             </div>
             <p className="text-xs text-slate-500">
               An order delay cannot be recorded without both a verified reason and a revised customer delivery date.

@@ -9,6 +9,7 @@ import { NotificationChannel, RoleType } from '@prisma/client';
 import { GoogleAuthService } from './googleAuthService';
 import { SubscriptionService } from '../subscriptions/subscriptionService';
 import { provisionDefaultGarmentsForTenant } from '../garments/garmentCatalogService';
+import { track } from '../conversion/funnelService';
 
 export class AuthController {
   // Staff Login
@@ -24,7 +25,7 @@ export class AuthController {
         });
       }
 
-      // If client explicitly supplied a tenant slug in request body (e.g. workspace picker or demo login), try that tenant first
+      // If client explicitly supplied a tenant slug in request body (e.g. workspace picker), try that tenant first
       const explicitBodySlug = req.body?.tenantSlug ? String(req.body.tenantSlug).trim() : '';
       let user = null;
 
@@ -98,6 +99,13 @@ export class AuthController {
         return res.status(403).json({
           success: false,
           error: { message: 'Account has been deactivated', code: 'ACCOUNT_DEACTIVATED' }
+        });
+      }
+
+      if (user.isSample) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Sample staff accounts cannot log in to the application.', code: 'SAMPLE_STAFF_LOGIN_BLOCKED' }
         });
       }
 
@@ -257,6 +265,14 @@ export class AuthController {
           tenant: true
         }
       });
+
+      // Track signup_completed in Conversion V1 funnel
+      if (config.conversionV1) {
+        await track(newTenant.id, 'signup_completed', {
+          email: normalizedEmail,
+          plan: 'FREE_TRIAL'
+        }, newUser.id);
+      }
 
       // Audit log
       await prisma.auditLog.create({

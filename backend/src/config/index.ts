@@ -22,7 +22,14 @@ export const config = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/v1/auth/google/callback',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  conversionV1: process.env.CONVERSION_V1 !== undefined
+    ? process.env.CONVERSION_V1 === 'true'
+    : (process.env.NODE_ENV !== 'production'),
+  whatsappNumber: process.env.WHATSAPP_NUMBER || '919999999999',
+  demoVideoUrlEn: process.env.DEMO_VIDEO_URL_EN || '',
+  demoVideoUrlHi: process.env.DEMO_VIDEO_URL_HI || '',
+  demoVideoUrlKn: process.env.DEMO_VIDEO_URL_KN || ''
 };
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {

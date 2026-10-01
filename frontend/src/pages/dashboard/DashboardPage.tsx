@@ -17,6 +17,11 @@ import {
   Layers,
   Calendar
 } from 'lucide-react';
+import { OnboardingModal } from '../../components/conversion/OnboardingModal';
+import { FirstWinChecklistCard } from '../../components/conversion/FirstWinChecklistCard';
+import { DashboardVideoCard } from '../../components/conversion/DashboardVideoCard';
+import { AhaModal } from '../../components/conversion/AhaModal';
+import { TeamInviteModal } from '../../components/conversion/TeamInviteModal';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +30,12 @@ export const DashboardPage: React.FC = () => {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Conversion V1 states
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAhaModal, setShowAhaModal] = useState(false);
+  const [showTeamInvite, setShowTeamInvite] = useState(false);
+  const [ahaData, setAhaData] = useState<any>(null);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -67,7 +78,14 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadDashboard();
-  }, [loadDashboard]);
+    if (user?.role === 'SHOP_OWNER') {
+      api.get('/conversion/onboarding/status').then(res => {
+        if (res.data?.success && !res.data.data?.completed) {
+          setShowOnboarding(true);
+        }
+      }).catch(() => {});
+    }
+  }, [loadDashboard, user?.role]);
 
   // Loading State with Shimmer Skeletons
   if (loading) {
@@ -227,6 +245,18 @@ export const DashboardPage: React.FC = () => {
   // Owner / Manager Dashboard View
   return (
     <div className="space-y-6">
+      {/* Conversion First-Win Checklist Card */}
+      <FirstWinChecklistCard
+        onOpenAhaModal={(orderData: any) => {
+          setAhaData(orderData);
+          setShowAhaModal(true);
+        }}
+        onInviteTeamClick={() => setShowTeamInvite(true)}
+      />
+
+      {/* Conversion Demo Video Card */}
+      <DashboardVideoCard />
+
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -504,6 +534,34 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Conversion Modals */}
+      <OnboardingModal
+        isOpen={showOnboarding}
+        firstName={user?.name?.split(' ')[0] || 'there'}
+        onComplete={() => setShowOnboarding(false)}
+        onSkip={() => setShowOnboarding(false)}
+      />
+
+      <AhaModal
+        isOpen={showAhaModal}
+        onClose={() => setShowAhaModal(false)}
+        customerName={ahaData?.customerName || 'Priya Sharma'}
+        orderNumber={ahaData?.orderNumber || 'ORD-101'}
+        stage={ahaData?.stage || 'CUTTING'}
+        orderTotal={ahaData?.orderTotal || 2500}
+        balanceDue={ahaData?.balanceDue || 1000}
+        deliveryDate={ahaData?.deliveryDate}
+      />
+
+      <TeamInviteModal
+        isOpen={showTeamInvite}
+        onClose={() => setShowTeamInvite(false)}
+        onSuccess={() => {
+          setShowTeamInvite(false);
+          loadDashboard();
+        }}
+      />
     </div>
   );
 };

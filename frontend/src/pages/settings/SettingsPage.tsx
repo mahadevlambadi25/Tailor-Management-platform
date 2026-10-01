@@ -5,17 +5,13 @@ import { api } from '../../api/client';
 import { 
   Building2, Sliders, ShieldCheck, DollarSign, 
   Save, CheckCircle2, AlertCircle, RefreshCw, Layers,
-  Crown, Database, Trash2, Sparkles, ChevronDown, ChevronUp
+  Crown, Sparkles
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { tenant, refreshTenant } = useTenant();
-  const isDev = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true';
   const [loading, setLoading] = useState(false);
-  const [showDevTools, setShowDevTools] = useState(false);
-  const [demoActionLoading, setDemoActionLoading] = useState(false);
-  const [subscribingLoading, setSubscribingLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -63,94 +59,6 @@ export default function SettingsPage() {
     }
   }, [tenant]);
 
-  const handleLoadDemoData = async () => {
-    if (demoActionLoading) return;
-    setDemoActionLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-    try {
-      const res = await api.post('/tenants/demo-data/load');
-      setSuccessMsg(res.data.message || 'Demo data loaded successfully! Sample clients, bespoke orders, and workflows are now active.');
-      await refreshTenant();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to load demo data');
-    } finally {
-      setDemoActionLoading(false);
-    }
-  };
-
-  const handleClearDemoData = async () => {
-    if (demoActionLoading) return;
-    if (!window.confirm('Are you sure you want to remove all demo data? Real customer orders and records will NOT be affected.')) {
-      return;
-    }
-    setDemoActionLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-    try {
-      const res = await api.post('/tenants/demo-data/clear');
-      setSuccessMsg(res.data.message || 'Demo records cleared.');
-      await refreshTenant();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to clear demo data');
-    } finally {
-      setDemoActionLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
-    if (subscribingLoading) return;
-    if (!window.confirm('Confirm and activate Pro Subscription for this account?')) {
-      return;
-    }
-    setSubscribingLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-    try {
-      const res = await api.post('/tenants/subscription/confirm', {
-        planName: 'PRO_ENTERPRISE_ACTIVE',
-        paymentId: `PAY_CONFIRMED_${Date.now()}`
-      });
-      setSuccessMsg(res.data.message || 'Subscription successfully activated!');
-      await refreshTenant();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to activate subscription');
-    } finally {
-      setSubscribingLoading(false);
-    }
-  };
-
-  const handleSimulatePending = async () => {
-    if (subscribingLoading) return;
-    setSubscribingLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-    try {
-      const res = await api.post('/tenants/subscription/checkout', { planName: 'PRO_ENTERPRISE' });
-      setSuccessMsg(res.data.message || 'Checkout initiated (PENDING). Demo data safely preserved.');
-      await refreshTenant();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to initiate checkout');
-    } finally {
-      setSubscribingLoading(false);
-    }
-  };
-
-  const handleSimulateFailed = async () => {
-    if (subscribingLoading) return;
-    setSubscribingLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-    try {
-      const res = await api.post('/tenants/subscription/fail', { reason: 'Card declined by bank simulation' });
-      setSuccessMsg(res.data.message || 'Payment simulated as FAILED. Demo data safely preserved.');
-      await refreshTenant();
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || err.message || 'Failed to simulate payment failure');
-    } finally {
-      setSubscribingLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,66 +183,7 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Developer Demo Controls (ONLY in Development for Explicit Demo Tenants) */}
-        {isDev && tenant?.isDemo && (
-          <div className="border-t border-slate-100 p-4 bg-slate-50">
-            <button
-              type="button"
-              onClick={() => setShowDevTools(!showDevTools)}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center justify-between w-full"
-            >
-              <span className="flex items-center gap-1.5 text-amber-700">
-                <Database size={14} />
-                <span>Developer Testing Tools (Demo Atelier Only)</span>
-              </span>
-              {showDevTools ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
 
-            {showDevTools && (
-              <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleLoadDemoData}
-                    disabled={demoActionLoading}
-                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 shadow-xs inline-flex items-center gap-1"
-                  >
-                    {demoActionLoading ? <RefreshCw size={12} className="animate-spin" /> : <Database size={12} />}
-                    <span>Load Demo Data</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleClearDemoData}
-                    disabled={demoActionLoading}
-                    className="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-medium text-rose-700 shadow-xs inline-flex items-center gap-1"
-                  >
-                    <Trash2 size={12} />
-                    <span>Clear Demo Data</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSimulatePending}
-                    disabled={subscribingLoading}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium"
-                  >
-                    Simulate Checkout (Pending)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSimulateFailed}
-                    disabled={subscribingLoading}
-                    className="px-3 py-1.5 rounded-lg bg-rose-900 text-white text-xs font-medium"
-                  >
-                    Simulate Failed
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

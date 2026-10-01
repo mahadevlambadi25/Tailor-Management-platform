@@ -8,7 +8,6 @@ import {
 } from '@prisma/client';
 import { SubscriptionService, SUBSCRIPTION_PLANS } from './subscriptionService';
 import { RazorpayService } from './razorpayService';
-import { purgeTenantDemoData } from '../demo/demoService';
 
 export class BillingService {
   /**

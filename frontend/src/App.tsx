@@ -34,6 +34,8 @@ import { CustomerMeasurementsPage } from './pages/customer-portal/CustomerMeasur
 import { CustomerProfilePage as CustomerPortalProfilePage } from './pages/customer-portal/CustomerProfilePage';
 import SettingsPage from './pages/settings/SettingsPage';
 import { SubscriptionPage } from './pages/subscription/SubscriptionPage';
+import { UpgradePage } from './pages/subscription/UpgradePage';
+import { AdminFunnelPage } from './pages/admin/AdminFunnelPage';
 import { LandingPage } from './pages/landing/LandingPage';
 
 export function App() {
@@ -117,6 +119,13 @@ export function App() {
 
                     {/* Atelier Subscription & Billing Lifecycle */}
                     <Route path="/subscription" element={<SubscriptionPage />} />
+                    <Route path="/upgrade" element={<UpgradePage />} />
+
+
+                    {/* Admin Conversion Telemetry (Super Admin Only) */}
+                    <Route element={<ProtectedRoute allowedRoles={['SAAS_OWNER', 'SAAS_SUPPORT']} />}>
+                      <Route path="/admin/funnel" element={<AdminFunnelPage />} />
+                    </Route>
                   </Route>
                 </Route>
 

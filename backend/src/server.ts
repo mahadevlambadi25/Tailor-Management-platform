@@ -2,6 +2,7 @@ import { app } from './app';
 import { config } from './config';
 import { logger } from './core/logger';
 import { prisma } from './core/prisma';
+import { NudgeScheduler } from './modules/conversion/nudgeScheduler';
 
 async function bootstrap() {
   try {
@@ -11,6 +12,9 @@ async function bootstrap() {
 
     await prisma.$connect();
     logger.info('Database connected successfully.');
+
+    // Start conversion trial nudge scheduler (if enabled)
+    NudgeScheduler.start();
 
     const port = process.env.PORT || 5000;
 
@@ -26,6 +30,7 @@ async function bootstrap() {
 
     const shutdown = async () => {
       logger.info('Shutting down server gracefully...');
+      NudgeScheduler.stop();
       server.close(async () => {
         await prisma.$disconnect();
         logger.info('Process terminated.');

@@ -7,6 +7,7 @@ import { config, ROLE_PERMISSIONS } from '../../config';
 import { SubscriptionService } from '../subscriptions/subscriptionService';
 import { provisionDefaultGarmentsForTenant } from '../garments/garmentCatalogService';
 import { logger } from '../../core/logger';
+import { track } from '../conversion/funnelService';
 
 export interface GoogleProfile {
   email: string;
@@ -287,6 +288,15 @@ export class GoogleAuthService {
         tenant: true
       }
     });
+
+    // Track signup_completed in Conversion V1 funnel
+    if (config.conversionV1) {
+      await track(newTenant.id, 'signup_completed', {
+        email: normalizedEmail,
+        provider: 'google',
+        plan: 'FREE_TRIAL'
+      }, newUser.id);
+    }
 
     // Audit log
     await prisma.auditLog.create({

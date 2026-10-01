@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useOfflineSync } from '../../context/OfflineSyncContext';
-import { Search, Globe, LogOut, Wifi, WifiOff, Scissors, Menu } from 'lucide-react';
+import { Search, Globe, LogOut, Wifi, WifiOff, Scissors, Menu, HelpCircle, Sparkles } from 'lucide-react';
 
 interface NavbarProps {
   onToggleMobileMenu?: () => void;
@@ -54,15 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
               <span className="hidden sm:inline rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 uppercase">
                 V1 SaaS
               </span>
-              {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true') && tenant?.isDemo && tenant?.demoStats?.hasDemoData && (
-                <span 
-                  onClick={() => navigate('/settings')}
-                  title="Demo sample data loaded (Development only)."
-                  className="cursor-pointer rounded-full bg-amber-100 text-amber-800 px-2 py-0.2 text-[9px] font-bold uppercase tracking-wider border border-amber-300 hover:bg-amber-200 transition hidden sm:inline-flex"
-                >
-                  Demo ({tenant.demoStats.demoOrdersCount})
-                </span>
-              )}
+
               {tenant?.subscription?.status === 'ACTIVE' && (
                 <span className="hidden sm:inline-flex rounded-full bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider border border-emerald-300">
                   PRO
@@ -144,6 +136,28 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <span className="text-xs font-bold text-slate-800">{user?.name}</span>
             <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">{user?.role}</span>
           </div>
+
+          {/* Replay Guided Tour */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('start_guided_tour'))}
+            title="Interactive Walkthrough"
+            className="p-1.5 sm:p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+
+          {/* Upgrade CTA Button */}
+          {tenant?.subscription?.status !== 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={() => navigate('/upgrade')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md hover:from-blue-700 hover:to-indigo-700 active:scale-98 transition-all"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Upgrade</span>
+            </button>
+          )}
 
           {/* Logout button */}
           <button

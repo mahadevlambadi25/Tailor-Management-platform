@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../core/prisma';
 import { UnitSystem } from '@prisma/client';
+import { config } from '../../config';
+import { track } from '../conversion/funnelService';
 
 export class MeasurementsController {
   // Save or update customer measurement version
@@ -70,6 +72,22 @@ export class MeasurementsController {
 
         return { updatedMeasurement: measurement, newVersion: version };
       });
+
+      // Conversion V1: Track first_measurement if this is the first real measurement
+      if (config.conversionV1) {
+        const cust = await prisma.customer.findUnique({ where: { id: customerId } });
+        if (cust && !cust.isSample) {
+          const count = await prisma.customerMeasurement.count({
+            where: {
+              tenantId,
+              customer: { isSample: { not: true }, isDemo: false }
+            }
+          });
+          if (count === 1) {
+            await track(tenantId, 'first_measurement', { measurementId: updatedMeasurement.id }, req.user?.id);
+          }
+        }
+      }
 
       return res.status(201).json({
         success: true,

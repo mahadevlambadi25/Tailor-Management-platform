@@ -24,6 +24,13 @@ model Tenant {
   pincode               String?
   state                 String?
   isDemo                Boolean                @default(false)
+  shopType              String?
+  teamSize              String?
+  shopCount             String?
+  onboardingCompleted   Boolean                @default(false)
+  checklistDismissed   Boolean                @default(false)
+  tourCompleted         Boolean                @default(false)
+  samplePromptDismissed Boolean                @default(false)
   alterations           Alteration[]
   appointments          Appointment[]
   auditLogs             AuditLog[]
@@ -204,6 +211,7 @@ model User {
   skills              String[]        @default([])
   staffCode           String?
   role                RoleType        @default(TAILOR)
+  isSample            Boolean?        @default(false)
   assignedAlterations Alteration[]    @relation("AssignedAlterationStaff")
   appointments        Appointment[]
   auditLogs           AuditLog[]
@@ -214,6 +222,7 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([branchId])
+  @@index([tenantId, isSample])
   @@map("users")
 }
 
@@ -230,6 +239,7 @@ model Customer {
   isDeleted      Boolean               @default(false)
   deletedAt      DateTime?
   isDemo         Boolean               @default(false)
+  isSample       Boolean?              @default(false)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   city           String?
@@ -256,6 +266,7 @@ model Customer {
   @@unique([tenantId, customerId])
   @@index([tenantId, isDeleted])
   @@index([tenantId, isDemo])
+  @@index([tenantId, isSample])
   @@index([tenantId, mobile])
   @@index([tenantId, firstName, lastName])
   @@map("customers")
@@ -462,6 +473,7 @@ model Order {
   isCancelled         Boolean       @default(false)
   cancellationReason  String?
   isDemo              Boolean       @default(false)
+  isSample            Boolean?      @default(false)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   invoices            Invoice[]
@@ -474,6 +486,7 @@ model Order {
   @@unique([tenantId, orderNumber])
   @@index([tenantId, status])
   @@index([tenantId, isDemo])
+  @@index([tenantId, isSample])
   @@index([tenantId, deliveryDate])
   @@index([tenantId, customerId])
   @@map("orders")
@@ -715,6 +728,7 @@ model Appointment {
   status          AppointmentStatus @default(SCHEDULED)
   notes           String?
   isDemo          Boolean           @default(false)
+  isSample        Boolean?          @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   branch          Branch?           @relation(fields: [branchId], references: [id])
@@ -725,6 +739,7 @@ model Appointment {
   @@index([tenantId, scheduledAt])
   @@index([tenantId, customerId])
   @@index([tenantId, isDemo])
+  @@index([tenantId, isSample])
   @@map("appointments")
 }
 
@@ -946,3 +961,47 @@ enum UnitSystem {
   INCHES
   CENTIMETERS
 }
+
+model FunnelEvent {
+  id        String   @id @default(uuid())
+  shopId    String
+  userId    String?
+  event     String
+  props     Json?
+  createdAt DateTime @default(now())
+
+  @@index([shopId])
+  @@index([event])
+  @@index([createdAt])
+  @@map("funnel_events")
+}
+
+model OutboxMessage {
+  id              String              @id @default(uuid())
+  tenantId        String
+  channel         NotificationChannel @default(WHATSAPP)
+  to              String
+  templateKey     String
+  vars            Json?
+  renderedContent String
+  status          String              @default("STUBBED")
+  createdAt       DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([channel])
+  @@map("outbox_messages")
+}
+
+model NudgeLog {
+  id        String   @id @default(uuid())
+  shopId    String
+  key       String
+  channel   String   @default("WHATSAPP")
+  sentAt    DateTime @default(now())
+  status    String   @default("SENT")
+
+  @@unique([shopId, key])
+  @@index([shopId])
+  @@map("nudge_logs")
+}
+

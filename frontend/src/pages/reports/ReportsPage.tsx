@@ -385,7 +385,7 @@ export const ReportsPage: React.FC = () => {
       <div className="hidden print:block border-b-2 border-slate-900 pb-3 mb-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">TAILOR SHOP MANAGEMENT — EXECUTIVE REPORT</h1>
+            <h1 className="text-xl font-bold text-slate-900">TAILOR SHOP MANAGEMENT: EXECUTIVE REPORT</h1>
             <p className="text-xs text-slate-600">
               Reporting Preset: {preset.replace('_', ' ')} | Scope: {selectedBranch ? 'Specific Branch' : 'All Branches'}
             </p>
@@ -953,7 +953,7 @@ const ProductionPanel: React.FC<{ data: any }> = ({ data }) => {
                 <div key={j.id} className="p-3 rounded-xl bg-rose-50/40 border border-rose-100 flex items-center justify-between text-xs">
                   <div>
                     <div className="font-bold text-slate-900">
-                      {j.orderNumber} — <span className="text-slate-600">{j.garmentName}</span>
+                      {j.orderNumber} - <span className="text-slate-600">{j.garmentName}</span>
                     </div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
                       Stage: <span className="font-semibold text-slate-700">{j.stage}</span> | Assignee: {j.assignedStaff}

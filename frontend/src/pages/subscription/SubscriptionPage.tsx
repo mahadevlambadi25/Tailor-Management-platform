@@ -434,7 +434,7 @@ export const SubscriptionPage: React.FC = () => {
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 shadow-xs flex items-start gap-3.5">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h3 className="text-sm font-bold text-amber-900">Atelier Operations Locked — Active Subscription Required</h3>
+            <h3 className="text-sm font-bold text-amber-900">Atelier Operations Locked: Active Subscription Required</h3>
             <p className="text-xs text-amber-700 mt-1 leading-relaxed">
               Your 14-day free trial or subscription period has elapsed. Orders, measurements, fittings, and reports are temporarily in view/locked mode. Your atelier records, staff accounts, and business data remain 100% safe.
             </p>

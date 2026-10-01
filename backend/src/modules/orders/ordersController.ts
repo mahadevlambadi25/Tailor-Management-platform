@@ -3,6 +3,8 @@ import { prisma } from '../../core/prisma';
 import { notificationService } from '../notifications/notificationService';
 import { NotificationChannel, OrderStatus, PaymentMethod, PaymentStatus, ProductionStageName, RoleType, UnitSystem } from '@prisma/client';
 import { PaymentCalculationService } from '../payments/paymentCalculationService';
+import { config } from '../../config';
+import { track } from '../conversion/funnelService';
 
 export class OrdersController {
   // List Orders with rich filtering
@@ -465,6 +467,20 @@ export class OrdersController {
         title: 'Order Confirmed',
         message: `Dear ${customer.firstName}, your order ${createdOrder.orderNumber} for ₹${createdOrder.netAmount} has been received. Expected delivery: ${new Date(deliveryDate).toLocaleDateString()}.`
       }).catch(e => console.error('Notification failed', e));
+
+      // Conversion V1: Track first_order and aha_reached if this is the first real order
+      if (config.conversionV1 && !createdOrder.isSample) {
+        const realOrderCount = await prisma.order.count({
+          where: { tenantId, isSample: { not: true }, isDemo: false, isCancelled: false }
+        });
+        if (realOrderCount === 1) {
+          await track(tenantId, 'first_order', { orderNumber: createdOrder.orderNumber }, req.user?.id);
+          await track(tenantId, 'aha_reached', {
+            orderNumber: createdOrder.orderNumber,
+            customerName: `${customer.firstName} ${customer.lastName}`
+          }, req.user?.id);
+        }
+      }
 
       return res.status(201).json({ success: true, data: createdOrder });
     } catch (err) { next(err); }

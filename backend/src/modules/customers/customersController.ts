@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../core/prisma';
+import { config } from '../../config';
+import { track } from '../conversion/funnelService';
 
 export class CustomersController {
   // List & Global Search
@@ -320,6 +322,16 @@ export class CustomersController {
           details: { name: `${customer.firstName} ${customer.lastName}`, mobile: customer.mobile }
         }
       });
+
+      // Conversion V1: Track first_customer if this is the first real customer
+      if (config.conversionV1 && !customer.isSample) {
+        const realCount = await prisma.customer.count({
+          where: { tenantId, isSample: { not: true }, isDemo: false, isDeleted: false }
+        });
+        if (realCount === 1) {
+          await track(tenantId, 'first_customer', { customerId: customer.id }, req.user?.id);
+        }
+      }
 
       return res.status(201).json({ success: true, data: customer });
     } catch (err) { next(err); }
