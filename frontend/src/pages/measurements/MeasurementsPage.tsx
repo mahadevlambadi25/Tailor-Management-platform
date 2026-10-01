@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { Ruler, Plus, History, CheckCircle2, User, RefreshCw } from 'lucide-react';
+import { Modal } from '../../components/common/Modal';
 
 export const MeasurementsPage: React.FC = () => {
   const [garments, setGarments] = useState<any[]>([]);
@@ -205,10 +206,15 @@ export const MeasurementsPage: React.FC = () => {
       </div>
 
       {/* Record Measurement Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">Record Measurement Profile</h2>
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        maxWidth="max-w-lg"
+        className="rounded-2xl p-6 shadow-2xl"
+        ariaLabel="Record Measurement Profile"
+      >
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Record Measurement Profile</h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Input measurements for {selectedCustomer?.firstName} {selectedCustomer?.lastName}.
             </p>
@@ -271,9 +277,8 @@ export const MeasurementsPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

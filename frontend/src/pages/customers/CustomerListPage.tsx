@@ -20,6 +20,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { CustomerImportModal } from '../../components/conversion/CustomerImportModal';
+import { Modal } from '../../components/common/Modal';
 
 export const CustomerListPage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -558,10 +559,15 @@ export const CustomerListPage: React.FC = () => {
       </div>
 
       {/* Add Customer Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex sm:items-center items-end justify-center bg-slate-900/60 backdrop-blur-xs sm:p-4 p-0 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col my-0 sm:my-8 animate-in fade-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        maxWidth="max-w-lg"
+        containerClassName="sm:items-center items-end justify-center sm:p-4 p-0"
+        className="rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-h-[92vh] flex flex-col my-0 sm:my-8"
+        ariaLabel="Add New Customer"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Add New Customer</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Capture client details for instant orders & measurements.</p>
@@ -775,9 +781,7 @@ export const CustomerListPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Phase 7 Customer Import Modal */}
       {import.meta.env.VITE_CONVERSION_V1 !== 'false' && (

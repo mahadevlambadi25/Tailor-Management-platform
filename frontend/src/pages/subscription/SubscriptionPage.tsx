@@ -26,6 +26,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { loadRazorpayScript } from '../../utils/razorpay';
+import { Modal } from '../../components/common/Modal';
 
 interface PlanDefinition {
   name: string;
@@ -1001,9 +1002,15 @@ export const SubscriptionPage: React.FC = () => {
       )}
 
       {/* INVOICE MODAL / PRINTABLE DIALOG */}
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 md:p-8 space-y-6 relative animate-scale-in">
+      <Modal
+        isOpen={Boolean(selectedInvoice)}
+        onClose={() => setSelectedInvoice(null)}
+        maxWidth="max-w-2xl"
+        className="rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 md:p-8 space-y-6"
+        ariaLabel="Subscription Tax Invoice"
+      >
+        {selectedInvoice && (
+          <div className="w-full space-y-6">
             {/* Header & Close */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2">
@@ -1115,8 +1122,8 @@ export const SubscriptionPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

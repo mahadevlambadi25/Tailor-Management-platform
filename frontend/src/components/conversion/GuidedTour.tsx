@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
@@ -99,9 +100,11 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 pointer-events-none flex items-end sm:items-center justify-center p-3 sm:p-6 bg-slate-950/40 backdrop-blur-[2px] animate-fade-in">
-      <div className="pointer-events-auto relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-left space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] pointer-events-none flex items-end sm:items-center justify-center p-3 sm:p-6 bg-slate-950/40 backdrop-blur-[2px] animate-fade-in">
+      <div className="pointer-events-auto relative z-[100000] w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-left space-y-4 animate-in slide-in-from-bottom-4 duration-300">
         
         {/* Top Header */}
         <div className="flex items-center justify-between">
@@ -186,6 +189,7 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

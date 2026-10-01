@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatCurrency } from '../../utils/currency';
 import { Printer, X, CheckCircle2, ShieldCheck, Scissors } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 interface ReceiptProps {
   isOpen: boolean;
@@ -67,7 +68,13 @@ export const PaymentReceiptModal: React.FC<ReceiptProps> = ({
   const isReversal = payment.isRefund || payment.isCorrection;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      className="rounded-2xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+      ariaLabel="Payment Receipt"
+    >
       <style>{`
         @media print {
           body * {
@@ -284,6 +291,6 @@ export const PaymentReceiptModal: React.FC<ReceiptProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

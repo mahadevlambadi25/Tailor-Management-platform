@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Video, X } from 'lucide-react';
 import { api } from '../../api/client';
+import { Modal } from '../common/Modal';
 
 export const DashboardVideoCard: React.FC = () => {
   const [videoUrls, setVideoUrls] = useState<{ [key: string]: string | undefined }>({
@@ -109,10 +110,15 @@ export const DashboardVideoCard: React.FC = () => {
         </div>
       </div>
 
-      {isPlaying && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-black shadow-2xl border border-slate-800">
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-900/90 text-white">
+      <Modal
+        isOpen={isPlaying}
+        onClose={() => setIsPlaying(false)}
+        maxWidth="max-w-3xl"
+        className="rounded-2xl bg-black shadow-2xl border border-slate-800 overflow-hidden p-0"
+        ariaLabel="Walkthrough Video"
+      >
+        <div className="w-full">
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-900/90 text-white">
               <span className="text-xs font-semibold">Watch how a shop runs a day (2 min)</span>
               <button
                 onClick={() => setIsPlaying(false)}
@@ -141,8 +147,7 @@ export const DashboardVideoCard: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
-      )}
-    </>
+        </Modal>
+      </>
   );
 };

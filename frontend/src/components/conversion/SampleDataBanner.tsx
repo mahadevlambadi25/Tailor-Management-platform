@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
 import { Sparkles, Trash2, UserPlus, AlertCircle, X, Check } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 interface SampleDataBannerProps {
   hasSampleData: boolean;
@@ -111,9 +112,14 @@ export const SampleDataBanner: React.FC<SampleDataBannerProps> = ({
       )}
 
       {/* 3. Clear Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 text-left space-y-4">
+      <Modal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-slate-100 text-left space-y-4"
+        ariaLabel="Clear the sample shop"
+      >
+        <div className="w-full relative space-y-4">
             
             <div className="flex items-center justify-between">
               <div className="h-10 w-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
@@ -157,8 +163,7 @@ export const SampleDataBanner: React.FC<SampleDataBannerProps> = ({
             </div>
 
           </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 };

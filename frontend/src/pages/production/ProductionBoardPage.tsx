@@ -25,6 +25,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
+import { Modal } from '../../components/common/Modal';
 
 interface StaffMember {
   id: string;
@@ -721,9 +722,15 @@ export const ProductionBoardPage: React.FC = () => {
       )}
 
       {/* MODAL 1: Historical Measurement Snapshot Modal */}
-      {measurementModalJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <Modal
+        isOpen={Boolean(measurementModalJob)}
+        onClose={() => setMeasurementModalJob(null)}
+        maxWidth="max-w-lg"
+        className="rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        ariaLabel="Garment Measurement Snapshot"
+      >
+        {measurementModalJob && (
+          <div className="w-full space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
@@ -813,13 +820,19 @@ export const ProductionBoardPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL 2: Staff Assignment Modal (Cutter, Tailor, Finisher) */}
-      {assignModalJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+      <Modal
+        isOpen={Boolean(assignModalJob)}
+        onClose={() => setAssignModalJob(null)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Assign Workshop Craftsmen"
+      >
+        {assignModalJob && (
+          <div className="w-full space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
@@ -935,13 +948,19 @@ export const ProductionBoardPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL 3: Mandatory Delay Reason Modal */}
-      {delayModalJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+      <Modal
+        isOpen={Boolean(delayModalJob)}
+        onClose={() => setDelayModalJob(null)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Flag Production Delay"
+      >
+        {delayModalJob && (
+          <div className="w-full space-y-4">
             <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
               <AlertTriangle className="h-5 w-5" />
               Flag Production Delay: Mandatory Requirements
@@ -998,13 +1017,19 @@ export const ProductionBoardPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL 4: Return for Alteration Modal (Explicit DELIVERED -> ALTERATION) */}
-      {returnModalJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+      <Modal
+        isOpen={Boolean(returnModalJob)}
+        onClose={() => setReturnModalJob(null)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Customer Returned Garment for Alteration"
+      >
+        {returnModalJob && (
+          <div className="w-full space-y-4">
             <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
               <RotateCcw className="h-5 w-5" />
               Customer Returned Garment for Alteration
@@ -1061,13 +1086,19 @@ export const ProductionBoardPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Delivery Confirmation Modal for Outstanding Balance */}
-      {deliveryConfirmJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+      <Modal
+        isOpen={Boolean(deliveryConfirmJob)}
+        onClose={() => setDeliveryConfirmJob(null)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Delivery Settlement Notice"
+      >
+        {deliveryConfirmJob && (
+          <div className="w-full space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -1141,8 +1172,8 @@ export const ProductionBoardPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

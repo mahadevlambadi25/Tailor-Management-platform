@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { formatCurrency } from '../../utils/currency';
+import { Modal } from '../../components/common/Modal';
 import {
   Phone,
   Mail,
@@ -839,10 +840,15 @@ export const CustomerProfilePage: React.FC = () => {
       </div>
 
       {/* Edit Customer Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex sm:items-center items-end justify-center bg-slate-900/60 backdrop-blur-xs sm:p-4 p-0 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col my-0 sm:my-8 animate-in fade-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        maxWidth="max-w-lg"
+        containerClassName="sm:items-center items-end justify-center sm:p-4 p-0"
+        className="rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-h-[92vh] flex flex-col my-0 sm:my-8"
+        ariaLabel="Edit Customer Information"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Edit Customer Information</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Update contact, address, and profile details for {customer.customerId}.</p>
@@ -1002,9 +1008,7 @@ export const CustomerProfilePage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };

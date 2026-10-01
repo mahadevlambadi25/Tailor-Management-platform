@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { api, API_BASE_URL } from '../../api/client';
+import { Modal } from '../../components/common/Modal';
 import {
   Scissors,
   Lock,
@@ -892,10 +893,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       {/* ========================================================================= */}
       {/* FORGOT PASSWORD MODAL                                                     */}
       {/* ========================================================================= */}
-      {showForgotPassword && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 relative">
-            <button
+      <Modal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 sm:p-7 shadow-2xl border border-slate-200 relative"
+        ariaLabel="Reset Shop Password"
+      >
+        <div>
+          <button
               type="button"
               id="forgot-password-close-button"
               onClick={() => setShowForgotPassword(false)}
@@ -975,9 +981,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
                 </div>
               </form>
             )}
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

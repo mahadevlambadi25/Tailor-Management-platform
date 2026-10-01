@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { PaymentReceiptModal } from '../../components/payments/PaymentReceiptModal';
 import { formatCurrency } from '../../utils/currency';
+import { Modal } from '../../components/common/Modal';
 import {
   Calendar,
   Clock,
@@ -679,10 +680,15 @@ export const OrderDetailPage: React.FC = () => {
       )}
 
       {/* Status Update Modal */}
-      {showStatusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 shadow-2xl"
+        ariaLabel="Update Order Status"
+      >
+        <div>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900">Update Order Status</h2>
               <button
                 onClick={() => setShowStatusModal(false)}
@@ -797,15 +803,19 @@ export const OrderDetailPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Record Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 shadow-2xl"
+        ariaLabel="Record Payment"
+      >
+        <div>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Record Payment</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -925,15 +935,19 @@ export const OrderDetailPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Cancel / Reversal Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 shadow-2xl space-y-4"
+        ariaLabel="Cancel / Reverse Payment"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
                   <RotateCcw className="h-4 w-4 text-rose-600" />
@@ -998,9 +1012,8 @@ export const OrderDetailPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Printable Receipt Modal */}
       <PaymentReceiptModal

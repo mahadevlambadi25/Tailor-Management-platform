@@ -4,6 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
 import { AlertCircle, Lock, ArrowRight, X, Sparkles } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 export const ExpiredTrialBanner: React.FC = () => {
   const navigate = useNavigate();
@@ -71,9 +72,15 @@ export const ExpiredTrialBanner: React.FC = () => {
       </div>
 
       {/* Upgrade Sheet Modal */}
-      {isSheetOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
-          <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom">
+      <Modal
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        maxWidth="max-w-lg"
+        containerClassName="items-end sm:items-center justify-center p-0 sm:p-4"
+        className="rounded-t-2xl sm:rounded-2xl p-6 border border-slate-200 space-y-4"
+        ariaLabel="View-only mode active"
+      >
+        <div className="w-full space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
@@ -126,8 +133,7 @@ export const ExpiredTrialBanner: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 };

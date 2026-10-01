@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Scissors, Palette, Plus, Tag, AlertCircle, CheckCircle2, ChevronRight, Layers, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
+import { Modal } from '../../components/common/Modal';
 
 export const StylesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -379,10 +380,14 @@ export const StylesPage: React.FC = () => {
       )}
 
       {/* MODAL: ADD GARMENT TYPE */}
-      {showGarmentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4 my-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showGarmentModal}
+        onClose={() => setShowGarmentModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Add Garment Type"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
                   <Scissors className="h-5 w-5" />
@@ -471,15 +476,17 @@ export const StylesPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* MODAL: ADD STYLE CUT */}
-      {showStyleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4 my-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <Modal
+        isOpen={showStyleModal}
+        onClose={() => setShowStyleModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 space-y-4"
+        ariaLabel="Add Design / Style Cut"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
                   <Palette className="h-5 w-5" />
@@ -569,9 +576,7 @@ export const StylesPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };

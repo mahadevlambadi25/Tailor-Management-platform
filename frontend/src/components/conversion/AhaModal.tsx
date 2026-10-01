@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
 import { Smartphone, Check, Send, X, ExternalLink, MessageSquare } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 export interface AhaModalProps {
   isOpen: boolean;
@@ -53,8 +54,14 @@ export const AhaModal: React.FC<AhaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 text-left my-auto space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      className="rounded-3xl p-6 sm:p-8 border border-slate-100 text-left space-y-6"
+      ariaLabel="Live Customer Experience"
+    >
+      <div className="w-full relative space-y-6">
         
         {/* Close Button */}
         <button
@@ -168,6 +175,6 @@ export const AhaModal: React.FC<AhaModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };

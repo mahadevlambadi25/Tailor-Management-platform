@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
 import { Users, UserPlus, Check, X, Send } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 interface TeamInviteModalProps {
   isOpen: boolean;
@@ -62,8 +63,14 @@ export const TeamInviteModal: React.FC<TeamInviteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 text-left my-auto space-y-5">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-md"
+      className="rounded-3xl p-6 sm:p-8 border border-slate-100 text-left space-y-5"
+      ariaLabel="Invite your team"
+    >
+      <div className="w-full relative space-y-5">
         
         {/* Close Button */}
         <button
@@ -198,6 +205,6 @@ export const TeamInviteModal: React.FC<TeamInviteModalProps> = ({
         )}
 
       </div>
-    </div>
+    </Modal>
   );
 };

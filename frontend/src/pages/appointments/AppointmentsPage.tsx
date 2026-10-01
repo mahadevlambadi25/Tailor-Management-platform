@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Calendar as CalendarIcon, Clock, Plus, User, CheckCircle2, XCircle } from 'lucide-react';
+import { Modal } from '../../components/common/Modal';
 
 export const AppointmentsPage: React.FC = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -152,10 +153,15 @@ export const AppointmentsPage: React.FC = () => {
         )}
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-slate-900">Schedule New Appointment</h2>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        maxWidth="max-w-md"
+        className="rounded-2xl p-6 shadow-2xl"
+        ariaLabel="Schedule New Appointment"
+      >
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Schedule New Appointment</h2>
             <form onSubmit={handleCreate} className="mt-4 space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700">Customer *</label>
@@ -228,9 +234,8 @@ export const AppointmentsPage: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

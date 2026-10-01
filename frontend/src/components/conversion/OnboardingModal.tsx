@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
 import { Sparkles, Scissors, Users, Building, Check, ArrowRight } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 export interface OnboardingModalProps {
   firstName?: string;
@@ -86,8 +87,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
+    <Modal
+      isOpen={isOpen}
+      onClose={onSkip || onComplete}
+      maxWidth="max-w-xl"
+      className="rounded-2xl sm:rounded-3xl border border-slate-100 overflow-hidden max-h-[95vh] flex flex-col p-0"
+      ariaLabel="Quick Workshop Setup"
+      closeOnBackdropClick={false}
+    >
+      <div className="w-full flex flex-col overflow-hidden">
         
         {/* Header Decor */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 px-5 sm:px-8 py-6 text-white text-left relative shrink-0">
@@ -214,6 +222,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };

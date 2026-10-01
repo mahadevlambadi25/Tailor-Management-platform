@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../../api/client';
 import { trackFunnelEvent } from '../../utils/funnel';
+import { Modal } from '../common/Modal';
 import {
   Upload,
   FileSpreadsheet,
@@ -162,8 +163,14 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 text-left my-auto space-y-6 max-h-[92vh] flex flex-col">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      className="rounded-3xl p-6 sm:p-8 border border-slate-100 space-y-6 max-h-[92vh] flex flex-col"
+      ariaLabel="Customer Import"
+    >
+      <div className="w-full space-y-6 flex flex-col">
         
         {/* Modal Top Header */}
         <div className="flex items-start justify-between shrink-0 pb-2 border-b border-slate-100">
@@ -407,6 +414,6 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         )}
 
       </div>
-    </div>
+    </Modal>
   );
 };

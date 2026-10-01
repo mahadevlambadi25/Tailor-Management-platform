@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Modal } from '../../components/common/Modal';
 import { api } from '../../api/client';
 import {
   User,
@@ -255,21 +255,17 @@ export const StaffPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Create Staff Modal — Portaled directly into document.body to eliminate stacking/clipping bugs */}
-      {showModal &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-            onClick={handleCloseModal}
-          >
-            <div
-              className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:px-6 sm:py-4 bg-white shrink-0">
+      {/* Create Staff Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        maxWidth="max-w-lg"
+        className="rounded-2xl shadow-2xl flex flex-col my-auto max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] overflow-hidden"
+        ariaLabel={createdStaff ? 'Staff Account Created' : 'Create Staff User'}
+      >
+        <div className="w-full flex flex-col">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:px-6 sm:py-4 bg-white shrink-0">
                 <div>
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     {createdStaff ? 'Staff Account Created' : 'Create Staff User'}
@@ -550,9 +546,7 @@ export const StaffPage: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>,
-          document.body
-        )}
+      </Modal>
     </div>
   );
 };

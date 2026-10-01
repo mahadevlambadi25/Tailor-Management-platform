@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -180,16 +181,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
       </aside>
 
       {/* Mobile Slide-Over Drawer with Backdrop */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation Drawer">
-          {/* Backdrop Overlay */}
-          <div
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
-          />
+      {mobileOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] md:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation Drawer">
+            {/* Backdrop Overlay */}
+            <div
+              onClick={onClose}
+              className="fixed inset-0 w-full h-full bg-black/50 backdrop-blur-sm transition-opacity"
+            />
 
-          {/* Slide-over Drawer Panel */}
-          <div className="relative z-50 w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out pt-[env(safe-area-inset-top,0px)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            {/* Slide-over Drawer Panel */}
+            <div className="relative z-[100000] w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out pt-[env(safe-area-inset-top,0px)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
             <div>
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80">
@@ -221,7 +223,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
               {renderSubscriptionBadge()}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
