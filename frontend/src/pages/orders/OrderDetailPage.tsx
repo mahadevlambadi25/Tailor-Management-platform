@@ -239,12 +239,12 @@ export const OrderDetailPage: React.FC = () => {
         <div>
           <Link
             to="/orders"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-2"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-2 min-h-[36px] py-1"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Orders
+            <ArrowLeft className="h-4 w-4" /> Back to Orders
           </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tracking-tight">
               {order.orderNumber}
             </h1>
             <StatusBadge status={order.status} />
@@ -269,18 +269,18 @@ export const OrderDetailPage: React.FC = () => {
                 : 'Unpaid'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1.5">
             Booked on {new Date(order.createdAt).toLocaleDateString()} • Client:{' '}
             <Link
               to={`/customers/${order.customer?.id}`}
-              className="font-semibold text-blue-600 hover:underline"
+              className="font-semibold text-blue-600 hover:underline inline-flex items-center py-0.5"
             >
               {order.customer?.firstName} {order.customer?.lastName} ({order.customer?.customerId})
             </Link>
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => {
               setNewStatus(order.status);
@@ -289,14 +289,14 @@ export const OrderDetailPage: React.FC = () => {
               setStatusError('');
               setShowStatusModal(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs cursor-pointer min-h-[40px]"
           >
             <Edit className="h-3.5 w-3.5 text-slate-500" />
             Update Status
           </button>
           <Link
             to={`/documents?orderId=${order.id}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs min-h-[40px]"
           >
             <Printer className="h-3.5 w-3.5 text-slate-500" />
             Print Job Card
@@ -307,7 +307,7 @@ export const OrderDetailPage: React.FC = () => {
               setPayError(null);
               setShowPaymentModal(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all cursor-pointer min-h-[42px]"
           >
             <CreditCard className="h-3.5 w-3.5" />
             Record Payment

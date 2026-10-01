@@ -207,13 +207,13 @@ export const ReportsPage: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* Page Header (Hidden in Print)                                 */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 print:hidden">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <BarChart3 className="h-6 w-6 text-blue-600" />
-            Reports & Operational Intelligence
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 shrink-0" />
+            <span>Reports & Operational Intelligence</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-0.5">
             Factual shop floor metrics, order workflows, and manual ledger accounting.
           </p>
         </div>
@@ -222,7 +222,7 @@ export const ReportsPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           {/* CSV Export Dropdown */}
           <div className="relative group">
-            <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs transition">
+            <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 min-h-[40px] text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs transition cursor-pointer">
               <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export CSV
             </button>
             <div className="absolute right-0 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 hidden group-hover:block z-30">
@@ -256,7 +256,7 @@ export const ReportsPage: React.FC = () => {
           {/* Browser Print Button */}
           <button
             onClick={() => window.print()}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs transition"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 min-h-[40px] text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
           >
             <Printer className="h-4 w-4 text-slate-600" /> Print Summary
           </button>
@@ -265,7 +265,7 @@ export const ReportsPage: React.FC = () => {
           <button
             onClick={fetchActiveReport}
             disabled={loading}
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+            className="rounded-xl border border-slate-200 bg-white p-2 min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-700 hover:bg-slate-50 shadow-2xs transition cursor-pointer"
             title="Refresh Data"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
@@ -289,7 +289,7 @@ export const ReportsPage: React.FC = () => {
                 <button
                   key={p}
                   onClick={() => setPreset(p)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition ${
+                  className={`px-3 py-1.5 min-h-[38px] text-xs font-semibold rounded-xl transition cursor-pointer ${
                     active
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
@@ -310,7 +310,7 @@ export const ReportsPage: React.FC = () => {
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[38px]"
               >
                 <option value="">All Branches</option>
                 {branches.map((b) => (
@@ -332,7 +332,7 @@ export const ReportsPage: React.FC = () => {
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[38px]"
               />
             </div>
             <div className="flex items-center gap-1.5 text-xs">
@@ -341,12 +341,12 @@ export const ReportsPage: React.FC = () => {
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[38px]"
               />
             </div>
             <button
               onClick={fetchActiveReport}
-              className="rounded-xl bg-slate-900 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-800 transition"
+              className="rounded-xl bg-slate-900 px-3.5 py-1.5 min-h-[38px] text-xs font-semibold text-white hover:bg-slate-800 transition cursor-pointer"
             >
               Apply Filter
             </button>
@@ -358,7 +358,7 @@ export const ReportsPage: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* Navigation Tabs (Hidden in Print)                             */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-px print:hidden">
+      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-px no-scrollbar print:hidden">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.key;
@@ -366,7 +366,7 @@ export const ReportsPage: React.FC = () => {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold whitespace-nowrap border-b-2 transition ${
+              className={`flex items-center gap-2 px-3.5 py-2.5 min-h-[44px] text-xs font-bold whitespace-nowrap border-b-2 transition cursor-pointer ${
                 active
                   ? 'border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-xl'
                   : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'

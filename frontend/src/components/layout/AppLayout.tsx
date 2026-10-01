@@ -100,7 +100,7 @@ export const AppLayout: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-20 md:pb-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 touch-pan-x">
           <Outlet />
         </main>
       </div>

@@ -100,16 +100,16 @@ export const OrderListPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Order Management</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Track bespoke tailoring orders, payment balances, production progress, and delivery commitments.
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Order Management</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Track bespoke tailoring orders, payment balances, and delivery commitments.
           </p>
         </div>
         <Link
           to="/orders/new"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 min-h-[44px] text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all cursor-pointer w-full sm:w-auto"
         >
           <PlusCircle className="h-4 w-4" />
           New Walk-in Order
@@ -117,17 +117,17 @@ export const OrderListPage: React.FC = () => {
       </div>
 
       {/* Search & Filters Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+      <div className="flex flex-col gap-2.5">
         {/* Search */}
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+        <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by order #, customer name, mobile..."
+              placeholder="Search order #, customer, mobile..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-hidden shadow-2xs"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-hidden shadow-2xs min-h-[44px]"
             />
             {search && (
               <button
@@ -136,24 +136,24 @@ export const OrderListPage: React.FC = () => {
                   setSearch('');
                   fetchOrders(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             )}
           </div>
           <button
             type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-all cursor-pointer"
+            className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] shrink-0"
           >
             Search
           </button>
         </form>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
+        {/* Filters - Horizontal scroll on mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-2xs shrink-0 min-h-[40px]">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -170,8 +170,8 @@ export const OrderListPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
-            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-2xs shrink-0 min-h-[40px]">
+            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <input
               type="date"
               value={deliveryDateFilter}
@@ -184,7 +184,7 @@ export const OrderListPage: React.FC = () => {
           {hasActiveFilters && (
             <button
               onClick={handleClearFilters}
-              className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-all"
+              className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-all shrink-0 min-h-[40px]"
             >
               <X className="h-3.5 w-3.5" /> Clear
             </button>
@@ -397,21 +397,21 @@ export const OrderListPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <span className="text-[11px] text-slate-400">
                       Booked {new Date(o.createdAt).toLocaleDateString()}
                     </span>
                     <div className="flex items-center gap-2">
                       <Link
                         to={`/documents?orderId=${o.id}`}
-                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                        className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-slate-500 bg-slate-100 hover:bg-slate-200"
                         title="Print"
                       >
                         <Printer className="h-4 w-4" />
                       </Link>
                       <Link
                         to={`/orders/${o.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 min-h-[40px] text-xs font-bold text-white hover:bg-blue-700 shadow-xs"
                       >
                         View Order
                       </Link>
@@ -425,29 +425,29 @@ export const OrderListPage: React.FC = () => {
 
         {/* Pagination Footer */}
         {pagination.pages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 px-4 py-3 bg-slate-50/60 text-xs text-slate-600 gap-2">
-            <div>
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 px-4 py-3 bg-slate-50/60 text-xs text-slate-600 gap-3">
+            <div className="text-center sm:text-left">
               Showing <span className="font-semibold text-slate-800">{Math.min((page - 1) * pagination.limit + 1, pagination.total)}</span> to{' '}
               <span className="font-semibold text-slate-800">{Math.min(page * pagination.limit, pagination.total)}</span> of{' '}
               <span className="font-semibold text-slate-800">{pagination.total}</span> orders
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => fetchOrders(page - 1)}
                 disabled={page <= 1 || loading}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-medium transition shadow-2xs cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-2 min-h-[40px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-medium transition shadow-2xs cursor-pointer text-xs"
               >
-                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                <ChevronLeft className="h-4 w-4" /> Previous
               </button>
-              <span className="px-2 font-semibold text-slate-700">Page {page} of {pagination.pages}</span>
+              <span className="px-2 font-semibold text-slate-700 text-xs shrink-0">Page {page} of {pagination.pages}</span>
               <button
                 type="button"
                 onClick={() => fetchOrders(page + 1)}
                 disabled={page >= pagination.pages || loading}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-medium transition shadow-2xs cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-2 min-h-[40px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-medium transition shadow-2xs cursor-pointer text-xs"
               >
-                Next <ChevronRight className="h-3.5 w-3.5" />
+                Next <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>

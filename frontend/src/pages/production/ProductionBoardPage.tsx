@@ -414,16 +414,16 @@ export const ProductionBoardPage: React.FC = () => {
         </div>
 
         {/* Action Row: Measurements, Assign Staff, Stage Update */}
-        <div className="flex items-center justify-between pt-1 gap-1 border-t border-slate-100 flex-wrap">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between pt-2 gap-1.5 border-t border-slate-100 flex-wrap">
+          <div className="flex items-center gap-1.5">
             {/* View Measurements Snapshot */}
             <button
               type="button"
               onClick={() => setMeasurementModalJob(job)}
               title="View Historical Measurements Snapshot"
-              className="inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 transition"
+              className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 min-h-[38px] text-xs font-semibold text-slate-700 transition cursor-pointer"
             >
-              <Eye className="h-2.5 w-2.5" />
+              <Eye className="h-3.5 w-3.5" />
               <span>Sizes</span>
             </button>
 
@@ -433,15 +433,15 @@ export const ProductionBoardPage: React.FC = () => {
                 type="button"
                 onClick={() => openAssignModal(job)}
                 title="Assign Cutter, Tailor or Finisher"
-                className="inline-flex items-center gap-1 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-700 transition"
+                className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-50 hover:bg-blue-100 px-2.5 min-h-[38px] text-xs font-semibold text-blue-700 transition cursor-pointer"
               >
-                <Scissors className="h-2.5 w-2.5" />
+                <Scissors className="h-3.5 w-3.5" />
                 <span>Assign</span>
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {/* Flag Delay Button */}
             {job.currentStage !== 'DELIVERED' && (
               <button
@@ -455,7 +455,7 @@ export const ProductionBoardPage: React.FC = () => {
                       : ''
                   );
                 }}
-                className="text-[10px] font-bold text-amber-700 hover:text-amber-900 transition underline"
+                className="min-h-[38px] px-2.5 inline-flex items-center justify-center text-xs font-bold text-amber-700 hover:text-amber-900 transition underline cursor-pointer"
               >
                 + Delay
               </button>
@@ -472,9 +472,9 @@ export const ProductionBoardPage: React.FC = () => {
                     setReturnNotes('');
                     setReturnError('');
                   }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-amber-700 shadow-xs transition"
+                  className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-600 px-3 min-h-[38px] text-xs font-bold text-white hover:bg-amber-700 shadow-xs transition cursor-pointer"
                 >
-                  <RotateCcw className="h-2.5 w-2.5" />
+                  <RotateCcw className="h-3.5 w-3.5" />
                   <span>Return for Alteration</span>
                 </button>
               )
@@ -483,10 +483,10 @@ export const ProductionBoardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleStageAdvance(job, nextStage.key)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-blue-700 shadow-xs transition"
+                  className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-3.5 min-h-[38px] text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition cursor-pointer"
                 >
                   <span>{nextStage.label}</span>
-                  <ArrowRight className="h-2.5 w-2.5" />
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               )
             )}
@@ -639,12 +639,12 @@ export const ProductionBoardPage: React.FC = () => {
 
       {/* Mobile Stage Switcher Pills (visible only on small viewports) */}
       {!loading && !error && (
-        <div className="block lg:hidden overflow-x-auto pb-2 scrollbar-none">
-          <div className="flex gap-1.5 min-w-max">
+        <div className="block lg:hidden overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex gap-2 min-w-max py-1">
             <button
               type="button"
               onClick={() => setMobileActiveStage('ALL')}
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+              className={`rounded-xl px-3.5 py-2 min-h-[40px] text-xs font-bold transition cursor-pointer ${
                 mobileActiveStage === 'ALL'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -660,14 +660,14 @@ export const ProductionBoardPage: React.FC = () => {
                   key={stage.key}
                   type="button"
                   onClick={() => setMobileActiveStage(stage.key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`rounded-xl px-3.5 py-2 min-h-[40px] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <span>{stage.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}`}>
                     {count}
                   </span>
                 </button>
@@ -679,7 +679,7 @@ export const ProductionBoardPage: React.FC = () => {
 
       {/* Desktop Kanban Board & Mobile Stage View */}
       {!loading && !error && (
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+        <div className="flex gap-3.5 overflow-x-auto pb-4 scrollbar-thin">
           {stages
             .filter((stage) => mobileActiveStage === 'ALL' || mobileActiveStage === stage.key)
             .map((stage, sIdx) => {
@@ -688,7 +688,9 @@ export const ProductionBoardPage: React.FC = () => {
               return (
                 <div
                   key={stage.key}
-                  className="w-full lg:w-72 shrink-0 rounded-2xl border border-slate-200 bg-slate-100/70 flex flex-col max-h-[calc(100vh-230px)] shadow-2xs"
+                  className={`${
+                    mobileActiveStage === 'ALL' ? 'w-[85vw] sm:w-72' : 'w-full lg:w-72'
+                  } shrink-0 rounded-2xl border border-slate-200 bg-slate-100/70 flex flex-col max-h-[calc(100vh-230px)] shadow-2xs`}
                 >
                   {/* Column Header */}
                   <div className="p-3 border-b border-slate-200/80 bg-white rounded-t-2xl flex items-center justify-between sticky top-0 z-10">

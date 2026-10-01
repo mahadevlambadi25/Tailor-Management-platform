@@ -28,7 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex flex-col w-full border-b border-slate-200 bg-white shadow-xs">
+    <header className="sticky top-0 z-30 flex flex-col w-full border-b border-slate-200 bg-white shadow-xs pt-[env(safe-area-inset-top,0px)]">
       <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-6">
         {/* Left: Mobile Menu Hamburger & Brand / Active Shop */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -36,7 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
+            className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 min-h-touch min-w-touch flex items-center justify-center"
             aria-label="Open mobile navigation menu"
           >
             <Menu className="h-5 w-5" />
@@ -82,13 +82,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
         </form>
 
         {/* Right Controls: Search icon (mobile), Online, Language, User, Logout */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
           {/* Mobile search toggle button */}
           <button
             type="button"
             onClick={() => setShowMobileSearch(!showMobileSearch)}
-            className="md:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            className="md:hidden p-2 min-h-touch min-w-touch flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
             title="Search"
+            aria-label="Toggle Search"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -113,19 +114,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <Globe className="h-3 w-3 text-slate-400 ml-1 hidden sm:inline" />
             <button
               onClick={() => setLanguage('en')}
-              className={`px-1.5 py-0.5 rounded transition ${language === 'en' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
+              className={`px-1.5 py-1 min-h-[32px] rounded transition ${language === 'en' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
             >
               EN
             </button>
             <button
               onClick={() => setLanguage('hi')}
-              className={`px-1.5 py-0.5 rounded transition ${language === 'hi' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
+              className={`px-1.5 py-1 min-h-[32px] rounded transition ${language === 'hi' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
             >
               HI
             </button>
             <button
               onClick={() => setLanguage('kn')}
-              className={`px-1.5 py-0.5 rounded transition ${language === 'kn' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
+              className={`px-1.5 py-1 min-h-[32px] rounded transition ${language === 'kn' ? 'bg-white shadow-2xs text-blue-600 font-bold' : 'text-slate-600'}`}
             >
               KN
             </button>
@@ -142,7 +143,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('start_guided_tour'))}
             title="Interactive Walkthrough"
-            className="p-1.5 sm:p-2 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition-colors"
+            aria-label="Help and walkthrough"
+            className="p-2 min-h-touch min-w-touch flex items-center justify-center text-slate-500 hover:text-blue-600 rounded-xl hover:bg-slate-100 transition-colors"
           >
             <HelpCircle className="h-4 w-4" />
           </button>
@@ -152,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <button
               type="button"
               onClick={() => navigate('/upgrade')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md hover:from-blue-700 hover:to-indigo-700 active:scale-98 transition-all"
+              className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md hover:from-blue-700 hover:to-indigo-700 active:scale-98 transition-all shrink-0"
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Upgrade</span>
@@ -163,7 +165,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
           <button
             onClick={logout}
             title={t('logout')}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 p-1.5 sm:p-2 text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors"
+            aria-label="Logout"
+            className="p-2 min-h-touch min-w-touch flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors"
           >
             <LogOut className="h-4 w-4" />
           </button>

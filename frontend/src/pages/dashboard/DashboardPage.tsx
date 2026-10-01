@@ -258,105 +258,105 @@ export const DashboardPage: React.FC = () => {
       <DashboardVideoCard />
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             {user?.role === 'RECEPTIONIST' ? 'Front Desk Operating Overview' : 'Shop Operating Overview'}
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             {user?.role === 'RECEPTIONIST'
               ? 'Daily intake orders, customer deliveries due today, and recent bookings.'
               : 'Live operational indicators, revenue reconciliation and delivery queues.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <button
             onClick={loadDashboard}
             title="Refresh dashboard data"
-            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-2xs"
+            className="p-2.5 min-h-touch min-w-touch rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-2xs flex items-center justify-center"
             aria-label="Refresh data"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
           <Link
             to="/orders/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 min-h-touch text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-98"
           >
             <PlusCircle className="h-4 w-4" />
-            New Walk-in Order
+            <span>New Walk-in Order</span>
           </Link>
           {(user?.role === 'SHOP_OWNER' || user?.role === 'MANAGER') && (
             <Link
               to="/production"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 min-h-touch text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs active:scale-98"
             >
               <KanbanSquare className="h-4 w-4" />
-              Production Board
+              <span>Production Board</span>
             </Link>
           )}
         </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Today's Orders */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs transition-shadow hover:shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Today's Orders</span>
-            <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-              <ShoppingBag className="h-4 w-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Today's Orders</span>
+            <div className="rounded-lg bg-blue-50 p-1.5 sm:p-2 text-blue-600">
+              <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
+          <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-bold text-slate-900">
             {formatNumber(metrics?.todayOrdersCount || 0)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">
-            Total booked: <span className="font-semibold text-slate-600">{formatNumber(metrics?.totalOrders || 0)}</span>
+          <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+            Booked: <span className="font-semibold text-slate-600">{formatNumber(metrics?.totalOrders || 0)}</span>
           </div>
         </div>
 
         {/* Due Today */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs transition-shadow hover:shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Due Today</span>
-            <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
-              <Clock className="h-4 w-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Due Today</span>
+            <div className="rounded-lg bg-amber-50 p-1.5 sm:p-2 text-amber-600">
+              <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-amber-600">
+          <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-bold text-amber-600">
             {formatNumber(metrics?.dueTodayCount || 0)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">
+          <div className="text-[10px] text-slate-400 mt-0.5 truncate">
             Overdue: <span className="font-semibold text-rose-600">{formatNumber(metrics?.overdueCount || 0)}</span>
           </div>
         </div>
 
         {/* Total Collected */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs transition-shadow hover:shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Total Collected</span>
-            <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-              <IndianRupee className="h-4 w-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Total Collected</span>
+            <div className="rounded-lg bg-emerald-50 p-1.5 sm:p-2 text-emerald-600">
+              <IndianRupee className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600">
+          <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-bold text-emerald-600 truncate">
             {formatCurrency(metrics?.totalRevenue)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Reconciled payments</div>
+          <div className="text-[10px] text-slate-400 mt-0.5 truncate">Reconciled payments</div>
         </div>
 
         {/* Outstanding Balance */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-xs transition-shadow hover:shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Outstanding Balance</span>
-            <div className="rounded-lg bg-rose-50 p-2 text-rose-600">
-              <AlertTriangle className="h-4 w-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500">Outstanding</span>
+            <div className="rounded-lg bg-rose-50 p-1.5 sm:p-2 text-rose-600">
+              <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-rose-600">
+          <div className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-bold text-rose-600 truncate">
             {formatCurrency(metrics?.outstandingReceivables)}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Pending receivables</div>
+          <div className="text-[10px] text-slate-400 mt-0.5 truncate">Pending receivables</div>
         </div>
       </div>
 
@@ -369,78 +369,78 @@ export const DashboardPage: React.FC = () => {
               Open Board →
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
             <Link
               to="/production"
-              className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 hover:bg-indigo-50 transition shadow-2xs group"
+              className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-2.5 sm:p-3 hover:bg-indigo-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">✂️ Cutting</span>
-              <div className="text-xl font-bold text-indigo-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-indigo-900 mt-0.5">
                 {formatNumber(managerMetrics.pendingCutting || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-indigo-700">In cutting queue</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-indigo-700 truncate">In cutting queue</div>
             </Link>
 
             <Link
               to="/production"
-              className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 hover:bg-blue-50 transition shadow-2xs group"
+              className="rounded-2xl border border-blue-100 bg-blue-50/50 p-2.5 sm:p-3 hover:bg-blue-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">🧵 Stitching</span>
-              <div className="text-xl font-bold text-blue-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-blue-900 mt-0.5">
                 {formatNumber(managerMetrics.pendingStitching || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-blue-700">In tailoring</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-blue-700 truncate">In tailoring</div>
             </Link>
 
             <Link
               to="/production"
-              className="rounded-xl border border-purple-100 bg-purple-50/50 p-3 hover:bg-purple-50 transition shadow-2xs group"
+              className="rounded-2xl border border-purple-100 bg-purple-50/50 p-2.5 sm:p-3 hover:bg-purple-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">👔 Trial Ready</span>
-              <div className="text-xl font-bold text-purple-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-purple-900 mt-0.5">
                 {formatNumber(managerMetrics.trialPending || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-purple-700">Fitting trials</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-purple-700 truncate">Fitting trials</div>
             </Link>
 
             <Link
               to="/production"
-              className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 hover:bg-amber-50 transition shadow-2xs group"
+              className="rounded-2xl border border-amber-100 bg-amber-50/50 p-2.5 sm:p-3 hover:bg-amber-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">🔄 Alterations</span>
-              <div className="text-xl font-bold text-amber-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-amber-900 mt-0.5">
                 {formatNumber(managerMetrics.alterationPending || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-amber-700">Fit adjustments</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-amber-700 truncate">Fit adjustments</div>
             </Link>
 
             <Link
               to="/production"
-              className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 hover:bg-emerald-50 transition shadow-2xs group"
+              className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-2.5 sm:p-3 hover:bg-emerald-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">✅ Ready</span>
-              <div className="text-xl font-bold text-emerald-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-emerald-900 mt-0.5">
                 {formatNumber(managerMetrics.readyForDelivery || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-emerald-700">For pickup</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-emerald-700 truncate">For pickup</div>
             </Link>
 
             <Link
               to="/production"
-              className="rounded-xl border border-rose-100 bg-rose-50/50 p-3 hover:bg-rose-50 transition shadow-2xs group"
+              className="rounded-2xl border border-rose-100 bg-rose-50/50 p-2.5 sm:p-3 hover:bg-rose-50 transition shadow-2xs group min-h-[48px]"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">⚠️ Delayed</span>
-              <div className="text-xl font-bold text-rose-900 mt-1">
+              <div className="text-lg sm:text-xl font-bold text-rose-900 mt-0.5">
                 {formatNumber(managerMetrics.delayedJobs || 0)}
               </div>
-              <div className="text-[10px] text-slate-500 group-hover:text-rose-700">Over schedule</div>
+              <div className="text-[10px] text-slate-500 group-hover:text-rose-700 truncate">Over schedule</div>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Recent Customer Orders Table */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+      {/* Recent Customer Orders Table & Mobile Cards */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-bold text-slate-900">Recent Customer Orders</h2>
@@ -450,7 +450,8 @@ export const DashboardPage: React.FC = () => {
             to="/orders"
             className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
           >
-            View All Orders <ArrowRight className="h-3.5 w-3.5" />
+            <span>View All</span>
+            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
@@ -462,76 +463,147 @@ export const DashboardPage: React.FC = () => {
             <p className="text-xs text-slate-500">No orders booked yet.</p>
             <Link
               to="/orders/new"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition min-h-touch"
             >
               <PlusCircle className="h-3.5 w-3.5" />
               Book First Order
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-6 sm:mx-0">
-            <table className="w-full text-left text-xs min-w-[650px]">
-              <thead className="border-b border-slate-100 bg-slate-50/50 text-slate-500 font-semibold uppercase tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-4">Order #</th>
-                  <th className="py-2.5 px-3">Customer</th>
-                  <th className="py-2.5 px-3">Garments</th>
-                  <th className="py-2.5 px-3">Net Total</th>
-                  <th className="py-2.5 px-3">Paid / Balance</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentOrders.map((order) => {
-                  const net = Number(order.netAmount || 0);
-                  const paid = Number(order.paidAmount || 0);
-                  const balance = Number(order.balanceAmount || 0);
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[650px]">
+                <thead className="border-b border-slate-100 bg-slate-50/50 text-slate-500 font-semibold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-4">Order #</th>
+                    <th className="py-2.5 px-3">Customer</th>
+                    <th className="py-2.5 px-3">Garments</th>
+                    <th className="py-2.5 px-3">Net Total</th>
+                    <th className="py-2.5 px-3">Paid / Balance</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentOrders.map((order) => {
+                    const net = Number(order.netAmount || 0);
+                    const paid = Number(order.paidAmount || 0);
+                    const balance = Number(order.balanceAmount || 0);
 
-                  return (
-                    <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                        {order.orderNumber}
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="font-medium text-slate-800 truncate max-w-[160px]" title={`${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`}>
-                          {order.customer?.firstName} {order.customer?.lastName}
-                        </div>
-                        <div className="text-[10px] text-slate-400">{order.customer?.mobile || 'No Mobile'}</div>
-                      </td>
-                      <td className="py-3 px-3 text-slate-600 max-w-[180px] truncate" title={order.items?.map((i: any) => i.garmentType?.name).join(', ')}>
-                        {order.items?.map((i: any) => i.garmentType?.name).join(', ') || 'Custom Garment'}
-                      </td>
-                      <td className="py-3 px-3 font-bold text-slate-900">
-                        {formatCurrency(net)}
-                      </td>
-                      <td className="py-3 px-3 text-slate-700">
-                        <span className="text-emerald-700 font-semibold">
-                          {formatCurrency(paid)}
-                        </span>
-                        {balance > 0 && (
-                          <span className="text-rose-600 font-semibold ml-1.5 text-[11px]">
-                            (-{formatCurrency(balance)})
+                    return (
+                      <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                          {order.orderNumber}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="font-medium text-slate-800 truncate max-w-[160px]" title={`${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`}>
+                            {order.customer?.firstName} {order.customer?.lastName}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{order.customer?.mobile || 'No Mobile'}</div>
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 max-w-[180px] truncate" title={order.items?.map((i: any) => i.garmentType?.name).join(', ')}>
+                          {order.items?.map((i: any) => i.garmentType?.name).join(', ') || 'Custom Garment'}
+                        </td>
+                        <td className="py-3 px-3 font-bold text-slate-900">
+                          {formatCurrency(net)}
+                        </td>
+                        <td className="py-3 px-3 text-slate-700">
+                          <span className="text-emerald-700 font-semibold">
+                            {formatCurrency(paid)}
+                          </span>
+                          {balance > 0 && (
+                            <span className="text-rose-600 font-semibold ml-1.5 text-[11px]">
+                              (-{formatCurrency(balance)})
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <StatusBadge status={order.status} size="sm" />
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Link
+                            to={`/orders/${order.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                          >
+                            Details <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Responsive Order Cards */}
+            <div className="block md:hidden divide-y divide-slate-100 -mx-4">
+              {recentOrders.map((order) => {
+                const net = Number(order.netAmount || 0);
+                const paid = Number(order.paidAmount || 0);
+                const balance = Number(order.balanceAmount || 0);
+
+                return (
+                  <div key={order.id} className="p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Link to={`/orders/${order.id}`} className="font-mono font-bold text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                          {order.orderNumber}
+                        </Link>
+                        {order.priority === 'URGENT' && (
+                          <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 border border-rose-200">
+                            URGENT
                           </span>
                         )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <StatusBadge status={order.status} size="sm" />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          to={`/orders/${order.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
-                        >
-                          Details <ArrowRight className="h-3 w-3" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <StatusBadge status={order.status} size="sm" />
+                    </div>
+
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-sm font-bold text-slate-900">
+                          {order.customer?.firstName} {order.customer?.lastName}
+                        </div>
+                        {order.customer?.mobile && (
+                          <a href={`tel:${order.customer.mobile}`} className="text-xs text-slate-500 hover:text-blue-600 mt-0.5 block">
+                            {order.customer.mobile}
+                          </a>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-slate-900">{formatCurrency(net)}</div>
+                        {balance > 0 ? (
+                          <div className="text-[10px] font-bold text-rose-600">Due: {formatCurrency(balance)}</div>
+                        ) : (
+                          <div className="text-[10px] font-semibold text-emerald-600">Settled ({formatCurrency(paid)})</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                      <span className="truncate max-w-[190px]">
+                        {order.items?.map((i: any) => i.garmentType?.name).filter(Boolean).join(', ') || 'Custom Garment'}
+                      </span>
+                      {order.deliveryDate && (
+                        <span className="shrink-0 font-medium text-slate-700 flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          {new Date(order.deliveryDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <Link
+                      to={`/orders/${order.id}`}
+                      className="w-full min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-colors active:scale-99"
+                    >
+                      <span>View Order Details</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

@@ -51,8 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
     { to: '/settings', label: t('settings'), icon: Settings, roleRestricted: ['SHOP_OWNER'] }
   ];
 
-  const renderNavLinks = () => (
-    <div className="p-3 space-y-1">
+  const renderNavLinks = (isMobile = false) => (
+    <div className={`p-3 space-y-1 ${isMobile ? 'space-y-1.5' : ''}`}>
       {navItems.map((item) => {
         if (item.roleRestricted && user && !item.roleRestricted.includes(user.role) && user.role !== 'SAAS_OWNER') {
           return null;
@@ -65,14 +65,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
               to={item.to}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                `flex items-center gap-3 px-3.5 ${
+                  isMobile ? 'py-3 min-h-[44px]' : 'py-2.5'
+                } rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                     : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                 }`
               }
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <item.icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
               <span>{item.label}</span>
             </NavLink>
           );
@@ -84,15 +86,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
             to={item.to}
             onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+              `flex items-center gap-3 px-3.5 ${
+                isMobile ? 'py-3 min-h-[44px]' : 'py-2'
+              } rounded-xl text-xs sm:text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-slate-100 text-blue-600 font-semibold'
+                  ? 'bg-blue-50 text-blue-700 font-bold'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`
             }
           >
-            <item.icon className="h-4 w-4 shrink-0" />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>{item.label}</span>
+              </>
+            )}
           </NavLink>
         );
       })}
@@ -164,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
     <>
       {/* Desktop Persistent Sidebar */}
       <aside className="hidden md:flex md:w-64 md:shrink-0 border-r border-slate-200 bg-white flex-col justify-between overflow-y-auto">
-        {renderNavLinks()}
+        {renderNavLinks(false)}
 
         <div className="p-3 border-t border-slate-100 bg-slate-50/40">
           {renderSubscriptionBadge()}
@@ -173,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
 
       {/* Mobile Slide-Over Drawer with Backdrop */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-50 md:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation Drawer">
           {/* Backdrop Overlay */}
           <div
             onClick={onClose}
@@ -181,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
           />
 
           {/* Slide-over Drawer Panel */}
-          <div className="relative z-50 w-72 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out">
+          <div className="relative z-50 w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300 ease-in-out pt-[env(safe-area-inset-top,0px)] pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
             <div>
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/80">
@@ -190,25 +198,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
                     <Scissors className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="font-bold text-xs text-slate-900 leading-tight">{tenant?.name || 'Tailor Atelier'}</div>
-                    <div className="text-[10px] text-slate-500 font-medium">Navigation Menu</div>
+                    <div className="font-bold text-xs sm:text-sm text-slate-900 leading-tight">{tenant?.name || 'Tailor Atelier'}</div>
+                    <div className="text-[10px] text-slate-500 font-medium">All Features & Operations</div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  aria-label="Close menu"
+                  className="p-2 min-h-touch min-w-touch flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Navigation Items */}
-              {renderNavLinks()}
+              {renderNavLinks(true)}
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-3 border-t border-slate-100 bg-slate-50/40">
+            <div className="p-3 border-t border-slate-100 bg-slate-50/40 space-y-2">
               {renderSubscriptionBadge()}
             </div>
           </div>

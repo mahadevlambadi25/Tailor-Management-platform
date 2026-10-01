@@ -104,14 +104,14 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Atelier Settings & Preferences</h1>
-          <p className="text-sm text-slate-500">Configure shop identity, subscription lifecycle, measurement standards, and flags.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Atelier Settings & Preferences</h1>
+          <p className="text-xs sm:text-sm text-slate-500">Configure shop identity, subscription lifecycle, measurement standards, and flags.</p>
         </div>
 
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition shadow-sm disabled:opacity-50"
+          className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition shadow-sm disabled:opacity-50 min-h-[44px] w-full sm:w-auto cursor-pointer"
         >
           {loading ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
           <span>Save Configuration</span>
@@ -135,13 +135,13 @@ export default function SettingsPage() {
 
       {/* Subscription Section (Clean Production SaaS Experience) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="h-11 w-11 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-300 shrink-0">
               <Crown size={24} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-bold text-white tracking-tight">Subscription</h2>
                 <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full border ${
                   tenant?.subscription?.status === 'ACTIVE'
@@ -157,17 +157,17 @@ export default function SettingsPage() {
                 Current Plan: <span className="font-semibold text-white">{tenant?.subscription?.planName || 'FREE_TRIAL'}</span>
                 {' • '}
                 {tenant?.subscription?.status === 'ACTIVE'
-                  ? 'All atelier features & capacity unlocked'
-                  : "You're currently using your 14-day free trial."}
+                  ? 'All atelier features unlocked'
+                  : "Using 14-day free trial."}
               </p>
             </div>
           </div>
 
-          <div>
+          <div className="w-full sm:w-auto">
             <button
               type="button"
               onClick={() => navigate('/subscription')}
-              className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs tracking-wide shadow-md transition cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs tracking-wide shadow-md transition cursor-pointer min-h-[42px]"
             >
               <Sparkles size={15} />
               <span>{tenant?.subscription?.status === 'ACTIVE' ? 'Manage Subscription' : 'View Plans'}</span>

@@ -251,18 +251,18 @@ export const CustomerListPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Customer Directory</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manage client profiles, measurements, contact channels, and order histories.
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Customer Directory</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Manage client profiles, measurements, contact channels, and orders.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {import.meta.env.VITE_CONVERSION_V1 !== 'false' && (
             <button
               onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs min-h-[40px]"
             >
               <Upload className="h-3.5 w-3.5 text-slate-500" />
               Import CSV
@@ -270,7 +270,7 @@ export const CustomerListPage: React.FC = () => {
           )}
           <button
             onClick={handleExport}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs min-h-[40px]"
           >
             <Download className="h-3.5 w-3.5 text-slate-500" />
             Export
@@ -281,7 +281,7 @@ export const CustomerListPage: React.FC = () => {
               setDuplicateCustomer(null);
               setShowAddModal(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all cursor-pointer min-h-[40px] flex-1 sm:flex-none"
           >
             <UserPlus className="h-4 w-4" />
             Add Customer
@@ -296,8 +296,8 @@ export const CustomerListPage: React.FC = () => {
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{successBanner}</span>
           </div>
-          <button onClick={() => setSuccessBanner(null)} className="text-emerald-700 hover:text-emerald-900">
-            <X className="h-3.5 w-3.5" />
+          <button onClick={() => setSuccessBanner(null)} className="text-emerald-700 hover:text-emerald-900 p-1">
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -305,27 +305,27 @@ export const CustomerListPage: React.FC = () => {
       {/* Search Input Bar */}
       <form onSubmit={handleSearchSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by customer name, phone number, email, or customer ID (e.g. CUST-10001)..."
+            placeholder="Search by name, phone, email, or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-8 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden shadow-2xs"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden shadow-2xs min-h-[44px]"
           />
           {search && (
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all cursor-pointer"
+          className="rounded-xl bg-slate-900 px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] shrink-0"
         >
           Search
         </button>
@@ -483,9 +483,9 @@ export const CustomerListPage: React.FC = () => {
                       <h3 className="font-bold text-sm text-slate-900 mt-1">
                         {c.firstName} {c.lastName}
                       </h3>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                        <a href={`tel:${c.mobile}`} className="flex items-center gap-1 hover:text-blue-600">
-                          <Phone className="h-3 w-3 text-slate-400" /> {c.mobile}
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                        <a href={`tel:${c.mobile}`} className="inline-flex items-center gap-1.5 py-1 text-slate-700 hover:text-blue-600 font-medium">
+                          <Phone className="h-3.5 w-3.5 text-blue-600" /> {c.mobile}
                         </a>
                       </div>
                     </div>
@@ -500,20 +500,21 @@ export const CustomerListPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 gap-2">
                     <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                      <MapPin className="h-3 w-3 text-slate-400" /> {c.city || 'Bangalore'}
+                      <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate max-w-[120px]">{c.city || 'Bangalore'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Link
                         to={`/orders/new?customerId=${c.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                        className="inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-600 px-3.5 min-h-[40px] text-xs font-bold text-white hover:bg-emerald-700 shadow-xs"
                       >
                         <PlusCircle className="h-3.5 w-3.5" /> Order
                       </Link>
                       <Link
                         to={`/customers/${c.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3.5 min-h-[40px] text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
                       >
                         Profile
                       </Link>
@@ -558,8 +559,8 @@ export const CustomerListPage: React.FC = () => {
 
       {/* Add Customer Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl my-8">
+        <div className="fixed inset-0 z-50 flex sm:items-center items-end justify-center bg-slate-900/60 backdrop-blur-xs sm:p-4 p-0 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col my-0 sm:my-8 animate-in fade-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Add New Customer</h2>
@@ -567,15 +568,15 @@ export const CustomerListPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="rounded-xl p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Error Notification */}
             {formError && (
-              <div className="mt-3 rounded-lg bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 border border-rose-200 flex items-center gap-2">
+              <div className="mt-3 rounded-xl bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 border border-rose-200 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
                 <span>{formError}</span>
               </div>
@@ -592,41 +593,41 @@ export const CustomerListPage: React.FC = () => {
                 <div className="pt-2 flex flex-wrap gap-2">
                   <Link
                     to={`/customers/${duplicateCustomer.id}`}
-                    className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 shadow-2xs"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow-2xs min-h-[40px]"
                   >
                     <Eye className="h-3.5 w-3.5" /> View Profile ({duplicateCustomer.name})
                   </Link>
                   <Link
                     to={`/orders/new?customerId=${duplicateCustomer.id}`}
-                    className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs min-h-[40px]"
                   >
-                    <PlusCircle className="h-3.5 w-3.5" /> Book Order for Customer
+                    <PlusCircle className="h-3.5 w-3.5" /> Book Order
                   </Link>
                 </div>
               </div>
             )}
 
-            <form onSubmit={handleCreateCustomer} className="mt-4 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreateCustomer} className="mt-4 space-y-3.5 text-xs overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700">First Name *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">First Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="e.g. Sunil"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Last Name *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Last Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="e.g. Rao"
                   />
                 </div>
@@ -634,26 +635,26 @@ export const CustomerListPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700">Phone Number *</label>
-                  <div className="relative mt-1">
-                    <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <label className="block font-semibold text-slate-700 mb-1">Phone Number *</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <input
                       type="tel"
                       required
                       value={formData.mobile}
                       onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                      className="block w-full rounded-lg border border-slate-300 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                      className="block w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                       placeholder="e.g. 9876543210"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700">Gender</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Gender</label>
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px] bg-white"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -663,28 +664,28 @@ export const CustomerListPage: React.FC = () => {
               </div>
 
               {/* WhatsApp Option */}
-              <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-200 space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="rounded-xl bg-slate-50 p-3 border border-slate-200 space-y-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.sameWhatsApp}
                     onChange={(e) => setFormData({ ...formData, sameWhatsApp: e.target.checked })}
-                    className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                    className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
                   />
-                  <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs sm:text-sm">
+                    <MessageSquare className="h-4 w-4 text-emerald-600" />
                     WhatsApp number is same as phone
                   </span>
                 </label>
 
                 {!formData.sameWhatsApp && (
                   <div>
-                    <label className="block font-medium text-slate-600 text-[11px]">Separate WhatsApp Number</label>
+                    <label className="block font-medium text-slate-600 text-[11px] mb-1">Separate WhatsApp Number</label>
                     <input
                       type="tel"
                       value={formData.whatsapp}
                       onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs bg-white"
+                      className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm bg-white min-h-[42px]"
                       placeholder="e.g. 9811122233"
                     />
                   </div>
@@ -692,83 +693,83 @@ export const CustomerListPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700">Email Address (Optional)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Email Address (Optional)</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   placeholder="name@example.com"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700">Street Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">Street Address</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   placeholder="Flat, building, street, landmark"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <label className="block font-semibold text-slate-700">City</label>
+                  <label className="block font-semibold text-slate-700 mb-1">City</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="Bangalore"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">State</label>
+                  <label className="block font-semibold text-slate-700 mb-1">State</label>
                   <input
                     type="text"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="Karnataka"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Pincode</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Pincode</label>
                   <input
                     type="text"
                     value={formData.pincode}
                     onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="560001"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700">VIP / Customer Notes</label>
+                <label className="block font-semibold text-slate-700 mb-1">VIP / Customer Notes</label>
                 <textarea
                   rows={2}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
                   placeholder="Fabric preferences, fitting nuances, special instructions..."
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-4">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 mt-4 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer min-h-[44px] flex-1 sm:flex-none"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow-md shadow-blue-500/20"
+                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow-md shadow-blue-500/20 min-h-[44px] flex-1 sm:flex-none"
                 >
                   {submitting ? 'Saving...' : 'Save Customer'}
                 </button>

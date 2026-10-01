@@ -30,11 +30,11 @@ export const CustomerPortalLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50 flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       {/* ------------------------------------------------------------- */}
       {/* Sticky Top Header                                             */}
       {/* ------------------------------------------------------------- */}
-      <header className="bg-slate-900 text-white shadow-md sticky top-0 z-30 border-b border-slate-800">
+      <header className="bg-slate-900 text-white shadow-md sticky top-0 z-30 border-b border-slate-800 pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-6xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between">
           {/* Atelier Brand & Shop Info */}
           <div className="flex items-center space-x-3">
@@ -84,7 +84,7 @@ export const CustomerPortalLayout: React.FC = () => {
             </div>
             <button
               onClick={handleSignOut}
-              className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800 text-xs font-semibold transition"
+              className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800 text-xs font-semibold transition min-h-[38px]"
               title="Sign Out"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -97,14 +97,14 @@ export const CustomerPortalLayout: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* Main Routed Page Content                                      */}
       {/* ------------------------------------------------------------- */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-5 sm:py-6">
         <Outlet />
       </main>
 
       {/* ------------------------------------------------------------- */}
       {/* Mobile Bottom Navigation Bar                                  */}
       {/* ------------------------------------------------------------- */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-30 px-2 py-1.5 flex justify-around items-center">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg z-30 px-2 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] flex justify-around items-center">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -113,9 +113,9 @@ export const CustomerPortalLayout: React.FC = () => {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[11px] font-bold transition ${
+                `flex flex-col items-center justify-center min-h-[44px] min-w-[56px] py-1 px-2 rounded-xl text-[11px] font-bold transition ${
                   isActive
-                    ? 'text-amber-600 bg-amber-50/70'
+                    ? 'text-amber-600 bg-amber-50/80 font-extrabold'
                     : 'text-slate-500 hover:text-slate-900'
                 }`
               }

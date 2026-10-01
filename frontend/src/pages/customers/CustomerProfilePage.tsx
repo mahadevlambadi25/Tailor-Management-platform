@@ -220,32 +220,32 @@ export const CustomerProfilePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Customer Header Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xl shadow-md shadow-blue-500/20">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-lg sm:text-xl shadow-md shadow-blue-500/20">
               {customer.firstName[0]}{customer.lastName[0]}
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
                   {customer.firstName} {customer.lastName}
                 </h1>
-                <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
+                <span className="font-mono text-[11px] sm:text-xs font-bold text-blue-700 bg-blue-50 px-2 sm:px-2.5 py-0.5 rounded-md border border-blue-100">
                   {customer.customerId}
                 </span>
                 {customer.gender && (
-                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                     {customer.gender}
                   </span>
                 )}
               </div>
 
               {/* Contact Information & Quick Actions */}
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-2">
                 <a
                   href={`tel:${customer.mobile}`}
-                  className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-600 bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                  className="inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-blue-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 min-h-[36px]"
                   title="Call Customer"
                 >
                   <Phone className="h-3.5 w-3.5 text-blue-600" />
@@ -256,7 +256,7 @@ export const CustomerProfilePage: React.FC = () => {
                   href={whatsAppUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
+                  className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200 min-h-[36px]"
                   title="Open WhatsApp Chat"
                 >
                   <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
@@ -267,15 +267,15 @@ export const CustomerProfilePage: React.FC = () => {
                 {customer.email && (
                   <a
                     href={`mailto:${customer.email}`}
-                    className="inline-flex items-center gap-1 text-slate-600 hover:text-blue-600 bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                    className="inline-flex items-center gap-1.5 text-slate-600 hover:text-blue-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 min-h-[36px]"
                     title="Send Email"
                   >
                     <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    {customer.email}
+                    <span className="truncate max-w-[150px]">{customer.email}</span>
                   </a>
                 )}
 
-                <span className="inline-flex items-center gap-1 text-slate-500">
+                <span className="inline-flex items-center gap-1 text-slate-500 py-1">
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
                   {customer.city || 'Bangalore'}
                 </span>
@@ -284,45 +284,47 @@ export const CustomerProfilePage: React.FC = () => {
           </div>
 
           {/* Spend / Balance & Primary Actions */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Spend</span>
-              <div className="text-lg font-bold text-slate-900">{formatCurrency(customer.totalSpend)}</div>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Balance Due</span>
-              <div className={`text-lg font-bold ${customer.outstandingBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                {formatCurrency(customer.outstandingBalance)}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between lg:justify-end gap-3.5 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 bg-slate-50/80 sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-slate-100">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Total Spend</span>
+                <div className="text-base sm:text-lg font-bold text-slate-900">{formatCurrency(customer.totalSpend)}</div>
+              </div>
+              <div className="hidden sm:block h-8 w-px bg-slate-200" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Balance Due</span>
+                <div className={`text-base sm:text-lg font-bold ${customer.outstandingBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {formatCurrency(customer.outstandingBalance)}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pl-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setShowEditModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer min-h-[42px]"
               >
                 <Edit className="h-3.5 w-3.5 text-slate-500" />
                 Edit Profile
               </button>
               <Link
                 to={`/orders/new?customerId=${customer.id}`}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 cursor-pointer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 cursor-pointer min-h-[42px]"
               >
                 <PlusCircle className="h-4 w-4" />
-                Create New Order
+                New Order
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="mt-6 flex overflow-x-auto border-b border-slate-200 gap-1 pb-px scrollbar-none">
+        {/* Tab Navigation - Horizontal scroll with comfortable touch targets */}
+        <div className="mt-5 flex overflow-x-auto border-b border-slate-200 gap-1 pb-px no-scrollbar">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`whitespace-nowrap px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+              className={`whitespace-nowrap px-3.5 py-2.5 min-h-[44px] flex items-center text-xs font-semibold border-b-2 transition-all cursor-pointer ${
                 activeTab === t.id
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -330,7 +332,7 @@ export const CustomerProfilePage: React.FC = () => {
             >
               {t.label}
               {typeof t.count === 'number' && (
-                <span className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                   activeTab === t.id ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {t.count}
@@ -838,8 +840,8 @@ export const CustomerProfilePage: React.FC = () => {
 
       {/* Edit Customer Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl my-8">
+        <div className="fixed inset-0 z-50 flex sm:items-center items-end justify-center bg-slate-900/60 backdrop-blur-xs sm:p-4 p-0 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col my-0 sm:my-8 animate-in fade-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Edit Customer Information</h2>
@@ -847,73 +849,73 @@ export const CustomerProfilePage: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="rounded-xl p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {editFormError && (
-              <div className="mt-3 rounded-lg bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 border border-rose-200 flex items-center gap-2">
+              <div className="mt-3 rounded-xl bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 border border-rose-200 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
                 <span>{editFormError}</span>
               </div>
             )}
 
-            <form onSubmit={handleUpdateCustomer} className="mt-4 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleUpdateCustomer} className="mt-4 space-y-3.5 text-xs overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700">First Name *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">First Name *</label>
                   <input
                     type="text"
                     required
                     value={editFormData.firstName}
                     onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Last Name *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Last Name *</label>
                   <input
                     type="text"
                     required
                     value={editFormData.lastName}
                     onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700">Mobile Number *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Mobile Number *</label>
                   <input
                     type="tel"
                     required
                     value={editFormData.mobile}
                     onChange={(e) => setEditFormData({ ...editFormData, mobile: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Email Address</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={editFormData.email}
                     onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                     placeholder="name@example.com"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700">Gender</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Gender</label>
                   <select
                     value={editFormData.gender}
                     onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px] bg-white"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -921,80 +923,80 @@ export const CustomerProfilePage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Date of Birth</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Date of Birth</label>
                   <input
                     type="date"
                     value={editFormData.dob}
                     onChange={(e) => setEditFormData({ ...editFormData, dob: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px] bg-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700">Street Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">Street Address</label>
                 <input
                   type="text"
                   value={editFormData.address}
                   onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   placeholder="Flat, building, street"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <label className="block font-semibold text-slate-700">City</label>
+                  <label className="block font-semibold text-slate-700 mb-1">City</label>
                   <input
                     type="text"
                     value={editFormData.city}
                     onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">State</label>
+                  <label className="block font-semibold text-slate-700 mb-1">State</label>
                   <input
                     type="text"
                     value={editFormData.state}
                     onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700">Pincode</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Pincode</label>
                   <input
                     type="text"
                     value={editFormData.pincode}
                     onChange={(e) => setEditFormData({ ...editFormData, pincode: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                    className="block w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden min-h-[42px]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700">VIP / Customer Notes</label>
+                <label className="block font-semibold text-slate-700 mb-1">VIP / Customer Notes</label>
                 <textarea
                   rows={2}
                   value={editFormData.notes}
                   onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 py-1.5 px-3 text-xs focus:border-blue-500 focus:outline-hidden"
+                  className="block w-full rounded-xl border border-slate-300 py-2 px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
                   placeholder="Fabric preferences, fitting nuances, special instructions..."
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-4">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 mt-4 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer min-h-[44px] flex-1 sm:flex-none"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow-md shadow-blue-500/20"
+                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow-md shadow-blue-500/20 min-h-[44px] flex-1 sm:flex-none"
                 >
                   {savingEdit ? 'Saving Changes...' : 'Save Changes'}
                 </button>

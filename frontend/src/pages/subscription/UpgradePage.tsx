@@ -206,13 +206,13 @@ export const UpgradePage: React.FC = () => {
           <Sparkles className="h-3.5 w-3.5" />
           <span>Keep your atelier growing</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           You've built something real, {progress.firstName}.
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
+        <p className="text-xs sm:text-base text-slate-600 max-w-2xl mx-auto">
           {progress.customerCount} customers. {progress.orderCount} orders. {progress.staffCount} people on your team. Keep it all moving.
         </p>
-        <p className="text-xs sm:text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl py-2 px-4 inline-block">
+        <p className="text-[11px] sm:text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl py-2 px-3 sm:px-4 inline-block">
           Your data stays exactly where it is. Nothing to set up again.
         </p>
       </div>
@@ -232,30 +232,30 @@ export const UpgradePage: React.FC = () => {
       )}
 
       {/* Progress Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs text-center">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Real Customers</div>
-          <div className="text-2xl font-extrabold text-slate-900 mt-1">{progress.customerCount}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Measurements and profiles saved</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs text-center">
+          <div className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Real Customers</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">{progress.customerCount}</div>
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">Measurements and profiles saved</div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs text-center">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Orders Tracked</div>
-          <div className="text-2xl font-extrabold text-blue-600 mt-1">{progress.orderCount}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Garments stitched and delivered</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs text-center">
+          <div className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Orders Tracked</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-blue-600 mt-1">{progress.orderCount}</div>
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">Garments stitched and delivered</div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs text-center">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Team Connected</div>
-          <div className="text-2xl font-extrabold text-emerald-600 mt-1">{progress.staffCount}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Cutters, tailors, and finishers</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-2xs text-center">
+          <div className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Team Connected</div>
+          <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-1">{progress.staffCount}</div>
+          <div className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">Cutters, tailors, and finishers</div>
         </div>
       </div>
 
       {/* Monthly / Annual Toggle */}
-      <div className="flex flex-col items-center justify-center gap-3">
-        <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200">
+      <div className="flex flex-col items-center justify-center gap-2.5">
+        <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200 w-full sm:w-auto">
           <button
             onClick={() => setBillingCycle('MONTHLY')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`flex-1 sm:flex-none px-3.5 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all cursor-pointer ${
               billingCycle === 'MONTHLY'
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -265,20 +265,20 @@ export const UpgradePage: React.FC = () => {
           </button>
           <button
             onClick={() => setBillingCycle('ANNUAL')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-none px-3.5 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               billingCycle === 'ANNUAL'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <span>Annual Billing</span>
-            <span className="text-[10px] bg-amber-300 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] bg-amber-300 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full shrink-0">
               Save ~17%
             </span>
           </button>
         </div>
         {billingCycle === 'ANNUAL' && (
-          <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+          <span className="text-[11px] sm:text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
             Pay yearly, get 2 months free
           </span>
         )}
