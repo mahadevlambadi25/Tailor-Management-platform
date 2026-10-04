@@ -172,15 +172,109 @@ export class AuthController {
   // Staff / Atelier Owner Registration
   static async staffRegister(req: Request, res: Response, next: NextFunction) {
     try {
-      const { name, email, password, confirmPassword } = req.body;
+      const {
+        name,
+        shopName,
+        ownerName,
+        email,
+        phone,
+        mobile,
+        password,
+        confirmPassword
+      } = req.body;
 
-      if (!name || !email || !password) {
+      // Extract effective values with full backwards-compatibility
+      const hasExplicitShopOrOwner = shopName !== undefined || ownerName !== undefined;
+      const rawShopName = (shopName !== undefined ? shopName : name || '').trim();
+      const rawOwnerName = (ownerName !== undefined ? ownerName : name || '').trim();
+      const rawMobile = (mobile !== undefined ? mobile : phone || '').trim();
+
+      // 1. Validate Shop Name
+      if (!rawShopName) {
         return res.status(400).json({
           success: false,
-          error: { message: 'Name, email, and password are required', code: 'MISSING_FIELDS' }
+          error: { message: 'Shop Name is required', code: 'MISSING_SHOP_NAME' }
+        });
+      }
+      if (rawShopName.length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Shop Name must be at least 2 characters', code: 'INVALID_SHOP_NAME' }
         });
       }
 
+      // 2. Validate Owner Name
+      if (!rawOwnerName) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Owner Name is required', code: 'MISSING_OWNER_NAME' }
+        });
+      }
+      if (rawOwnerName.length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Owner Name must be at least 2 characters', code: 'INVALID_OWNER_NAME' }
+        });
+      }
+
+      // 3. Validate Email
+      if (!email || !String(email).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Business Email is required', code: 'MISSING_EMAIL' }
+        });
+      }
+      const normalizedEmail = String(email).toLowerCase().trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Please enter a valid business email address', code: 'INVALID_EMAIL' }
+        });
+      }
+
+      // 4. Validate Mobile Number
+      let normalizedPhone = '+91 9999999999';
+      if (hasExplicitShopOrOwner || mobile !== undefined) {
+        if (!rawMobile) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Mobile Number is required', code: 'MISSING_MOBILE' }
+          });
+        }
+        const digits = rawMobile.replace(/\D/g, '');
+        if (digits.length === 10) {
+          normalizedPhone = `+91 ${digits}`;
+        } else if (digits.length === 12 && digits.startsWith('91')) {
+          normalizedPhone = `+91 ${digits.slice(2)}`;
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Please enter a valid 10-digit mobile number', code: 'INVALID_MOBILE' }
+          });
+        }
+      } else if (rawMobile) {
+        const digits = rawMobile.replace(/\D/g, '');
+        if (digits.length === 10) {
+          normalizedPhone = `+91 ${digits}`;
+        } else if (digits.length === 12 && digits.startsWith('91')) {
+          normalizedPhone = `+91 ${digits.slice(2)}`;
+        }
+      }
+
+      // 5. Validate Password
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Password is required', code: 'MISSING_PASSWORD' }
+        });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Password must be at least 6 characters long', code: 'PASSWORD_TOO_SHORT' }
+        });
+      }
       if (confirmPassword && password !== confirmPassword) {
         return res.status(400).json({
           success: false,
@@ -188,16 +282,7 @@ export class AuthController {
         });
       }
 
-      if (password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          error: { message: 'Password must be at least 6 characters long', code: 'PASSWORD_TOO_SHORT' }
-        });
-      }
-
-      const normalizedEmail = email.toLowerCase().trim();
-
-      // Check if user already exists
+      // 6. Check existing user
       const existingUser = await prisma.user.findFirst({
         where: { email: normalizedEmail }
       });
@@ -209,9 +294,8 @@ export class AuthController {
         });
       }
 
-      // Provision new Tenant, Branch, Subscription, and Shop Owner User
-      const rawName = name.trim();
-      const slugBase = rawName
+      // 7. Provision new Tenant, Branch, Subscription, and Shop Owner User
+      const slugBase = rawShopName
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
@@ -221,9 +305,9 @@ export class AuthController {
 
       const newTenant = await prisma.tenant.create({
         data: {
-          name: `${rawName}'s Atelier`,
+          name: rawShopName,
           slug: newSlug,
-          phone: '+91 9999999999',
+          phone: normalizedPhone,
           email: normalizedEmail,
           currency: 'INR',
           isDemo: false,
@@ -253,8 +337,9 @@ export class AuthController {
         data: {
           tenantId: newTenant.id,
           branchId: mainBranch.id,
-          name: rawName,
+          name: rawOwnerName,
           email: normalizedEmail,
+          phone: normalizedPhone,
           role: RoleType.SHOP_OWNER,
           passwordHash,
           isActive: true,
