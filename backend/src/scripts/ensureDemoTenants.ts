@@ -4,7 +4,7 @@ import { seedDemoDataForTenant } from '../modules/demo/demoService';
 async function main() {
   await prisma.tenant.updateMany({
     where: { slug: { in: ['royal-bespoke', 'demo-tailors'] } },
-    data: { isDemo: true }
+    data: { isDemo: true, onboardingCompleted: true, tourCompleted: true }
   });
 
   const royal = await prisma.tenant.findUnique({ where: { slug: 'royal-bespoke' } });

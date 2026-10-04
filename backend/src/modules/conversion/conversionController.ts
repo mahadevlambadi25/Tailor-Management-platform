@@ -121,6 +121,8 @@ export class ConversionController {
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
         select: {
+          slug: true,
+          isDemo: true,
           onboardingCompleted: true,
           tourCompleted: true,
           shopType: true,
@@ -129,9 +131,43 @@ export class ConversionController {
         }
       });
 
+      if (!tenant) {
+        return res.status(404).json({ success: false, error: { message: 'Tenant not found' } });
+      }
+
+      let isCompleted = Boolean(tenant.onboardingCompleted);
+
+      // Auto-complete for existing configured tenants (demo or existing active tenants)
+      if (!isCompleted) {
+        if (tenant.isDemo || tenant.slug === 'royal-bespoke' || tenant.slug === 'demo-tailors' || Boolean(tenant.shopType)) {
+          isCompleted = true;
+          await prisma.tenant.update({
+            where: { id: tenantId },
+            data: { onboardingCompleted: true }
+          }).catch(() => {});
+        } else {
+          // Check if tenant has existing real (non-sample) orders or customers
+          const [realOrderCount, realCustCount] = await Promise.all([
+            prisma.order.count({ where: { tenantId, isSample: { not: true } } }),
+            prisma.customer.count({ where: { tenantId, isSample: { not: true } } })
+          ]);
+          if (realOrderCount > 0 || realCustCount > 0) {
+            isCompleted = true;
+            await prisma.tenant.update({
+              where: { id: tenantId },
+              data: { onboardingCompleted: true }
+            }).catch(() => {});
+          }
+        }
+      }
+
       return res.json({
         success: true,
-        data: tenant
+        data: {
+          ...tenant,
+          completed: isCompleted,
+          onboardingCompleted: isCompleted
+        }
       });
     } catch (err) {
       next(err);
@@ -153,7 +189,14 @@ export class ConversionController {
           data: { onboardingCompleted: true }
         });
         await track(tenantId, 'onboarding_skipped', {}, userId);
-        return res.json({ success: true, message: 'Onboarding skipped' });
+        return res.json({
+          success: true,
+          message: 'Onboarding skipped',
+          data: {
+            completed: true,
+            onboardingCompleted: true
+          }
+        });
       }
 
       const resolvedShopType = shopType || 'Boutique';
@@ -183,7 +226,8 @@ export class ConversionController {
           shopType: resolvedShopType,
           teamSize: resolvedTeamSize,
           shopCount: resolvedShopCount,
-          completed: true
+          completed: true,
+          onboardingCompleted: true
         }
       });
     } catch (err) {

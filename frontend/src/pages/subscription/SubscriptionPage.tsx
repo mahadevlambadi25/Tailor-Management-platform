@@ -31,14 +31,17 @@ import { Modal } from '../../components/common/Modal';
 interface PlanDefinition {
   name: string;
   displayName: string;
-  price: string;
-  priceValue: number;
-  period: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  price?: string;
+  priceValue?: number;
+  period?: string;
   maxOrdersPerMonth: number;
   maxStaff: number;
   maxBranches: number;
   features: string[];
   popular?: boolean;
+  recommendedTag?: string;
 }
 
 interface BillingTransaction {
@@ -97,6 +100,8 @@ const PLANS: PlanDefinition[] = [
   {
     name: 'STARTER',
     displayName: 'Starter Atelier',
+    monthlyPrice: 999,
+    annualPrice: 9990,
     price: '₹999',
     priceValue: 999,
     period: '/ month',
@@ -117,6 +122,8 @@ const PLANS: PlanDefinition[] = [
   {
     name: 'PROFESSIONAL',
     displayName: 'Professional Boutique',
+    monthlyPrice: 2499,
+    annualPrice: 24990,
     price: '₹2,499',
     priceValue: 2499,
     period: '/ month',
@@ -124,6 +131,7 @@ const PLANS: PlanDefinition[] = [
     maxStaff: 50,
     maxBranches: 5,
     popular: true,
+    recommendedTag: 'Recommended for Ateliers',
     features: [
       'Up to 2,000 Bespoke Orders / month',
       'Up to 50 Atelier Staff Accounts',
@@ -139,6 +147,8 @@ const PLANS: PlanDefinition[] = [
   {
     name: 'BUSINESS',
     displayName: 'Enterprise Haute Couture',
+    monthlyPrice: 5999,
+    annualPrice: 59990,
     price: '₹5,999',
     priceValue: 5999,
     period: '/ month',
@@ -164,10 +174,21 @@ export const SubscriptionPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [isStartingTrial, setIsStartingTrial] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string>('PROFESSIONAL');
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // Dynamic discount calculation based on actual monthly & annual plan prices
+  const calculateDiscountPercentage = (monthly: number, annual: number): number => {
+    if (!monthly || !annual) return 0;
+    const yearlyAtMonthlyRate = monthly * 12;
+    const savings = yearlyAtMonthlyRate - annual;
+    return Math.round((savings / yearlyAtMonthlyRate) * 100);
+  };
+
+  const discountPercent = calculateDiscountPercentage(PLANS[0].monthlyPrice, PLANS[0].annualPrice);
 
   // Billing History & Invoices state
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
@@ -259,10 +280,18 @@ export const SubscriptionPage: React.FC = () => {
     setProcessingPlan(plan.name);
 
     try {
-      // 1. Call POST /api/v1/subscriptions/checkout (never sending amount from frontend)
-      const checkoutRes = await api.post('/subscriptions/checkout', {
-        plan: plan.name
-      });
+      // 1. Call checkout endpoint (passing cycle: billingCycle; supports both conversion and subscriptions routes)
+      let checkoutRes;
+      try {
+        checkoutRes = await api.post('/conversion/checkout', {
+          plan: plan.name,
+          cycle: billingCycle
+        });
+      } catch {
+        checkoutRes = await api.post('/subscriptions/checkout', {
+          plan: plan.name
+        });
+      }
 
       if (!checkoutRes.data?.success || !checkoutRes.data?.data) {
         throw new Error(checkoutRes.data?.error?.message || 'Failed to initialize subscription checkout');
@@ -284,7 +313,7 @@ export const SubscriptionPage: React.FC = () => {
         currency,
         order_id: orderId,
         name: tenant?.name || 'Tailor Management System',
-        description: `${plan.displayName} Subscription (${plan.period})`,
+        description: `${plan.displayName} Subscription (${billingCycle === 'ANNUAL' ? 'Annual' : 'Monthly'})`,
         prefill: {
           name: user?.name,
           email: user?.email,
@@ -541,10 +570,10 @@ export const SubscriptionPage: React.FC = () => {
                   type="button"
                   id="choose-paid-plan-btn"
                   onClick={scrollToPlans}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-sm hover:shadow-md hover:shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
                 >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20 shrink-0" />
                   <span>Choose a Paid Plan</span>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 </button>
               </div>
             </div>
@@ -588,8 +617,9 @@ export const SubscriptionPage: React.FC = () => {
                   type="button"
                   id="view-plans-btn"
                   onClick={scrollToPlans}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
                 >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20 shrink-0" />
                   <span>View Plans</span>
                 </button>
               </div>
@@ -694,8 +724,9 @@ export const SubscriptionPage: React.FC = () => {
                   type="button"
                   id="reactivate-plan-btn"
                   onClick={scrollToPlans}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
                 >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20 shrink-0" />
                   <span>Reactivate Subscription</span>
                 </button>
               </div>
@@ -745,31 +776,73 @@ export const SubscriptionPage: React.FC = () => {
       )}
 
       {/* Plan Tiers Grid */}
-      <div id="pricing-plans" className="space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Available Subscription Plans</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Transparent pricing designed specifically for high-craft bespoke tailoring boutiques.
-          </p>
+      <div id="pricing-plans" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Available Subscription Plans</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Transparent pricing designed specifically for high-craft bespoke tailoring boutiques.
+            </p>
+          </div>
+
+          {/* Monthly / Annual Billing Toggle */}
+          <div className="flex flex-col items-start sm:items-end gap-1.5 shrink-0">
+            <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('MONTHLY')}
+                className={`px-3.5 py-1.5 min-h-[36px] text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  billingCycle === 'MONTHLY'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Monthly Billing
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('ANNUAL')}
+                className={`px-3.5 py-1.5 min-h-[36px] text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                  billingCycle === 'ANNUAL'
+                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Annual Billing</span>
+                <span className="text-[10px] bg-amber-300 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full shrink-0">
+                  Save ~{discountPercent}%
+                </span>
+              </button>
+            </div>
+            {billingCycle === 'ANNUAL' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-full">
+                <Sparkles className="w-3 h-3 text-amber-500 fill-amber-500/20" />
+                <span>Pay yearly, get 2 months free</span>
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {PLANS.map((plan) => {
             const isCurrent = subscription?.planName === plan.name && isSubscriptionActive;
-            const isSelected = selectedPlan === plan.name;
+            const price = billingCycle === 'ANNUAL' ? plan.annualPrice : plan.monthlyPrice;
+            const formattedPrice = `₹${price.toLocaleString('en-IN')}`;
+            const periodLabel = billingCycle === 'ANNUAL' ? '/ year' : '/ month';
 
             return (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-6 transition-all flex flex-col justify-between relative bg-white border ${plan.popular
-                    ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md'
+                className={`rounded-2xl p-6 transition-all flex flex-col justify-between relative bg-white border ${
+                  plan.popular
+                    ? 'border-2 border-indigo-500/80 ring-4 ring-indigo-500/10 shadow-lg shadow-indigo-500/5'
                     : 'border-slate-200 hover:border-slate-300 shadow-sm'
-                  }`}
+                }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-                    <Crown className="w-3 h-3" />
-                    Recommended for Ateliers
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-xs flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300/20" />
+                    <span>{plan.recommendedTag || 'Recommended for Ateliers'}</span>
                   </div>
                 )}
 
@@ -777,16 +850,21 @@ export const SubscriptionPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-base text-slate-900">{plan.displayName}</h3>
                     {isCurrent && (
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                        Current
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                        Current Tier
                       </span>
                     )}
                   </div>
 
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-slate-900 tracking-tight">{plan.price}</span>
-                    <span className="text-xs text-slate-500 font-medium">{plan.period}</span>
+                  <div className="mt-4 flex items-baseline gap-1.5">
+                    <span className="text-3xl font-black text-slate-900 tracking-tight">{formattedPrice}</span>
+                    <span className="text-xs text-slate-500 font-medium">{periodLabel}</span>
                   </div>
+                  {billingCycle === 'ANNUAL' && (
+                    <div className="text-[11px] text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
+                      <span>₹{Math.round(plan.annualPrice / 12).toLocaleString('en-IN')}/mo &bull; 2 months free included</span>
+                    </div>
+                  )}
 
                   <div className="mt-4 space-y-1 text-xs text-slate-600 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-2">
@@ -818,20 +896,19 @@ export const SubscriptionPage: React.FC = () => {
                     type="button"
                     disabled={isCurrent || !!processingPlan}
                     onClick={() => handleInitiateCheckout(plan)}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${isCurrent
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      isCurrent
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default'
                         : processingPlan === plan.name
-                          ? 'bg-blue-500 text-white cursor-wait opacity-90'
+                          ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white cursor-wait opacity-90'
                           : processingPlan
                             ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                            : isSelected || plan.popular
-                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 hover:bg-blue-700'
-                              : 'bg-slate-900 text-white hover:bg-slate-800'
-                      }`}
+                            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 active:scale-[0.98] text-white shadow-md shadow-indigo-500/20 cursor-pointer'
+                    }`}
                   >
                     {isCurrent ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Active Tier</span>
                       </>
                     ) : processingPlan === plan.name ? (
@@ -839,12 +916,17 @@ export const SubscriptionPage: React.FC = () => {
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         <span>Processing Checkout...</span>
                       </>
-                    ) : isStateE ? (
-                      <span>Reactivate with {plan.displayName}</span>
-                    ) : isStateA || isStateC ? (
-                      <span>Choose {plan.displayName}</span>
                     ) : (
-                      <span>Upgrade to {plan.displayName}</span>
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 fill-amber-300/20 shrink-0" />
+                        <span>
+                          {isStateE
+                            ? `Reactivate with ${plan.displayName}`
+                            : isStateA || isStateC
+                              ? `Choose ${plan.displayName}`
+                              : `Upgrade to ${plan.displayName}`}
+                        </span>
+                      </>
                     )}
                   </button>
                 </div>

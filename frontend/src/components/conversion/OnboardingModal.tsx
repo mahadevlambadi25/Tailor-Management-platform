@@ -9,13 +9,15 @@ export interface OnboardingModalProps {
   isOpen: boolean;
   onComplete: () => void;
   onSkip?: () => void;
+  tenantId?: string;
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   firstName = 'there',
   isOpen,
   onComplete,
-  onSkip
+  onSkip,
+  tenantId
 }) => {
   const [shopType, setShopType] = useState<string>('Ladies tailoring');
   const [teamSize, setTeamSize] = useState<string>('2 to 5');
@@ -48,6 +50,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const handleSave = async () => {
     try {
       setLoading(true);
+      if (tenantId) {
+        localStorage.setItem(`onboarding_completed_${tenantId}`, 'true');
+      }
       await api.post('/conversion/onboarding', {
         shopType,
         teamSize,
@@ -67,6 +72,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const handleSkip = async () => {
     try {
       setLoading(true);
+      if (tenantId) {
+        localStorage.setItem(`onboarding_dismissed_${tenantId}`, 'true');
+        sessionStorage.setItem(`onboarding_dismissed_${tenantId}`, 'true');
+      }
       await api.post('/conversion/onboarding', {
         skipped: true
       });
@@ -75,12 +84,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         defaultTeamSize: '2 to 5',
         defaultShopCount: 'One'
       });
-      onComplete();
-      if (onSkip) onSkip();
+      if (onSkip) {
+        onSkip();
+      } else {
+        onComplete();
+      }
     } catch (err) {
       console.error('Failed to skip onboarding', err);
-      onComplete();
-      if (onSkip) onSkip();
+      if (onSkip) {
+        onSkip();
+      } else {
+        onComplete();
+      }
     } finally {
       setLoading(false);
     }
@@ -89,7 +104,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onSkip || onComplete}
+      onClose={handleSkip}
       maxWidth="max-w-xl"
       className="rounded-2xl sm:rounded-3xl border border-slate-100 overflow-hidden max-h-[95vh] flex flex-col p-0"
       ariaLabel="Quick Workshop Setup"

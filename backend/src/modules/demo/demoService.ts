@@ -726,7 +726,7 @@ export async function seedIdentifiableDemoTenant(slug: string = 'demo-tailors') 
 
   const demoTenant = await prisma.tenant.upsert({
     where: { slug },
-    update: { isDemo: true },
+    update: { isDemo: true, onboardingCompleted: true, tourCompleted: true },
     create: {
       name: 'Demo Bespoke Tailor Atelier',
       slug,
@@ -739,7 +739,12 @@ export async function seedIdentifiableDemoTenant(slug: string = 'demo-tailors') 
       gstNumber: '29DEMO1234F1Z9',
       defaultUnit: UnitSystem.INCHES,
       currency: 'INR',
-      isDemo: true
+      isDemo: true,
+      onboardingCompleted: true,
+      tourCompleted: true,
+      shopType: 'Bespoke Atelier',
+      teamSize: '6 to 15',
+      shopCount: 'One'
     }
   });
 

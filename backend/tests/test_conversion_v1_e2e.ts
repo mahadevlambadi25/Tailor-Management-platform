@@ -1,9 +1,11 @@
 import http from 'http';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../src/core/prisma';
 import { config } from '../src/config';
 import { app } from '../src/app';
 import { NudgeService } from '../src/modules/conversion/nudgeService';
+import { SampleDataService } from '../src/modules/conversion/sampleDataService';
 import { RoleType } from '@prisma/client';
 
 const PORT = 5055;
@@ -89,52 +91,26 @@ async function runConversionE2ETests() {
     assert(tenant?.onboardingCompleted === false, 'Tenant onboardingCompleted is initially false');
 
     const sampleCustomers = tenant?.customers.filter((c: any) => c.isSample) || [];
-    assert(sampleCustomers.length === 15, `Seeded exactly 15 sample customers (found ${sampleCustomers.length})`);
+    assert(sampleCustomers.length === 0, `Clean tenant has 0 sample customers (found ${sampleCustomers.length})`);
+    assert(tenant?.customers.length === 0, `Clean tenant starts with 0 customers (found ${tenant?.customers.length})`);
 
     const sampleOrders = tenant?.orders.filter((o: any) => o.isSample) || [];
-    assert(sampleOrders.length === 10, `Seeded exactly 10 sample orders (found ${sampleOrders.length})`);
+    assert(sampleOrders.length === 0, `Clean tenant has 0 sample orders (found ${sampleOrders.length})`);
+    assert(tenant?.orders.length === 0, `Clean tenant starts with 0 orders (found ${tenant?.orders.length})`);
 
-    // Verify order stage distribution: 2 received/new, 2 cutting, 2 stitching, 1 trial, 2 ready, 1 delivered
+    // Verify clean production queue: 0 sample production jobs
     const sampleJobs = await prisma.productionJob.findMany({
       where: {
         tenantId: tenant!.id,
         orderItem: { order: { isSample: true } },
       },
     });
-    const stageCounts: Record<string, number> = {};
-    for (const job of sampleJobs) {
-      stageCounts[job.currentStage] = (stageCounts[job.currentStage] || 0) + 1;
-    }
-    assert(stageCounts['RECEIVED'] === 2, '2 sample orders in RECEIVED/NEW stage');
-    assert(stageCounts['CUTTING'] === 2, '2 sample orders in CUTTING stage');
-    assert(stageCounts['STITCHING'] === 2, '2 sample orders in STITCHING stage');
-    assert(stageCounts['TRIAL'] === 1, '1 sample order in TRIAL stage');
-    assert(stageCounts['READY'] === 2, '2 sample orders in READY stage');
-    assert(stageCounts['DELIVERED'] === 1, '1 sample order in DELIVERED stage');
+    assert(sampleJobs.length === 0, 'Clean tenant starts with 0 sample production jobs');
 
-    // Verify sample staff created and blocked from logging in
+    // Verify 0 sample staff created; exactly 1 initial user (shop owner)
     const sampleStaff = tenant?.users.filter((u: any) => u.isSample) || [];
-    assert(sampleStaff.length === 3, `Seeded 3 sample staff (cutter, tailor, finisher) (found ${sampleStaff.length})`);
-
-    const sampleLoginRes = await fetch(`${BASE_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantSlug: testSlug,
-        email: sampleStaff[0].email,
-        password: 'Password@123',
-      }),
-    });
-    const sampleLoginData: any = await sampleLoginRes.json();
-    assert(
-      sampleLoginRes.status === 403,
-      'Sample staff login blocked with HTTP 403',
-      `Status: ${sampleLoginRes.status}`
-    );
-    assert(
-      sampleLoginData.error?.code === 'SAMPLE_STAFF_LOGIN_BLOCKED',
-      'Sample staff login blocked with error code SAMPLE_STAFF_LOGIN_BLOCKED'
-    );
+    assert(sampleStaff.length === 0, `Clean tenant has 0 sample staff (found ${sampleStaff.length})`);
+    assert(tenant?.users.length === 1, `Clean tenant has exactly 1 initial user (owner)`);
 
     // =========================================================================
     // STEP 3: POST-SIGNUP ONBOARDING
@@ -170,11 +146,11 @@ async function runConversionE2ETests() {
     assert(progressRes.status === 200, 'GET /upgrade/progress returns HTTP 200');
     assert(
       progressData.data?.customerCount === 0,
-      `Real customer count is 0 despite 15 sample customers (found ${progressData.data?.customerCount})`
+      `Real customer count is 0 in clean workspace (found ${progressData.data?.customerCount})`
     );
     assert(
       progressData.data?.orderCount === 0,
-      `Real order count is 0 despite 10 sample orders (found ${progressData.data?.orderCount})`
+      `Real order count is 0 in clean workspace (found ${progressData.data?.orderCount})`
     );
     assert(progressData.data?.staffCount === 0, 'Only non-owner staff counted in progress (0 initially)');
 
@@ -207,13 +183,10 @@ async function runConversionE2ETests() {
     assert(custRes.status === 201, 'POST /customers creates real customer with HTTP 201', JSON.stringify(custData));
     const realCustomerId = custData.data?.id;
 
-    // Verify sample prompt should show now
-    const sampleStatusRes = await fetch(`${BASE_URL}/api/v1/conversion/sample-data/status`, {
-      headers: authHeaders,
-    });
-    const sampleStatusData: any = await sampleStatusRes.json();
-    assert(sampleStatusData.data?.hasRealCustomer === true, 'Sample status recognizes real customer exists');
-    assert(sampleStatusData.data?.shouldShowPrompt === true, 'shouldShowPrompt is true after first real customer');
+    // Verify sample status reports zero sample data and recognizes real customer
+    const sampleStatus = await SampleDataService.getStatus(tenant!.id);
+    assert(sampleStatus.hasSampleData === false, 'Sample status confirms no sample data in clean workspace');
+    assert(sampleStatus.realCustomers === 1, 'SampleDataService recognizes first real customer');
 
     // Verify checklist step 1 is completed
     const checklistRes2 = await fetch(`${BASE_URL}/api/v1/conversion/checklist`, {
@@ -318,17 +291,12 @@ async function runConversionE2ETests() {
     assert(checklistData5.data?.step4_moveStage === true, 'Checklist Step 4 (move_order_stage) is completed');
 
     // =========================================================================
-    // STEP 8: CLEAR SAMPLE DATA (ONLY SAMPLE DATA DELETED!)
+    // STEP 8: CLEAR SAMPLE DATA (SAFE NO-OP ON CLEAN TENANT)
     // =========================================================================
-    console.log('\n[STEP 8] Testing Clear Sample Data (Real Data Preserved)...');
-    const clearRes = await fetch(`${BASE_URL}/api/v1/conversion/sample-data/clear`, {
-      method: 'POST',
-      headers: authHeaders,
-    });
-    const clearData: any = await clearRes.json();
-    assert(clearRes.status === 200, 'POST /conversion/sample-data/clear returns HTTP 200');
-    assert(clearData.data?.deletedCustomers === 15, 'Deleted exactly 15 sample customers');
-    assert(clearData.data?.deletedOrders === 10, 'Deleted exactly 10 sample orders');
+    console.log('\n[STEP 8] Testing Clear Sample Data Safety (Real Data Preserved)...');
+    const clearResult = await SampleDataService.clearSampleData(tenant!.id);
+    assert(clearResult.deletedCustomers === 0, 'Zero sample customers deleted on clean tenant (found 0)');
+    assert(clearResult.deletedOrders === 0, 'Zero sample orders deleted on clean tenant (found 0)');
 
     // Verify in DB that real customer and real order are intact
     const remainingCust = await prisma.customer.findUnique({ where: { id: realCustomerId } });
@@ -343,9 +311,9 @@ async function runConversionE2ETests() {
     assert(sampleCountAfter === 0, 'Zero sample customers remain');
 
     // =========================================================================
-    // STEP 9: TEAM INVITE & OUTBOX STUB
+    // STEP 9: TEAM INVITE & STAFF ACCOUNT CREATION
     // =========================================================================
-    console.log('\n[STEP 9] Testing Team Invite & Message Outbox Stub...');
+    console.log('\n[STEP 9] Testing Team Invite & Staff Account Creation...');
     const inviteRes = await fetch(`${BASE_URL}/api/v1/conversion/team/invite`, {
       method: 'POST',
       headers: authHeaders,
@@ -357,12 +325,12 @@ async function runConversionE2ETests() {
     });
     assert(inviteRes.status === 201, 'POST /conversion/team/invite returns HTTP 201');
 
-    // Check OutboxMessage created
-    const outboxMessage = await prisma.outboxMessage.findFirst({
-      where: { tenantId: tenant!.id, channel: 'WHATSAPP' },
+    // Verify staff user created in DB with CUTTER role
+    const invitedStaff = await prisma.user.findFirst({
+      where: { tenantId: tenant!.id, phone: '9876500002' },
     });
-    assert(outboxMessage !== null, 'OutboxMessage created for staff invite (stubbed, zero live external sends)');
-    assert(outboxMessage?.to === '9876500002', 'OutboxMessage recipient matches invited phone');
+    assert(invitedStaff !== null, 'Invited staff user created in database');
+    assert(invitedStaff?.role === 'CUTTER', 'Invited staff assigned CUTTER role');
 
     // Verify checklist step 5 is completed
     const checklistRes6 = await fetch(`${BASE_URL}/api/v1/conversion/checklist`, {
@@ -444,33 +412,31 @@ async function runConversionE2ETests() {
     });
     const checkoutData: any = await checkoutRes.json();
     assert(checkoutRes.status === 200, 'POST /conversion/checkout returns HTTP 200');
-    assert(checkoutData.data?.simulatedOrderId?.startsWith('sim_'), 'Simulated checkout order created');
+    assert(!!checkoutData.data?.orderId, 'Razorpay checkout order created');
+    assert(checkoutData.data?.provider === 'razorpay', 'Provider is razorpay');
 
-    // Simulate Payment Failure
-    const simFailRes = await fetch(`${BASE_URL}/api/v1/conversion/checkout/simulate`, {
+    // Verify Payment via subscriptions/verify endpoint
+    const rzpOrderId = checkoutData.data.orderId;
+    const testSecret = config.razorpayKeySecret || 'test_secret';
+    const fakePaymentId = `pay_test_${Date.now()}`;
+    const generatedSignature = crypto
+      .createHmac('sha256', testSecret)
+      .update(`${rzpOrderId}|${fakePaymentId}`)
+      .digest('hex');
+
+    const verifyRes = await fetch(`${BASE_URL}/api/v1/subscriptions/verify`, {
       method: 'POST',
-      headers: authHeaders,
+      headers: { ...authHeaders, 'x-tenant-slug': testSlug },
       body: JSON.stringify({
-        outcome: 'failure',
+        razorpay_order_id: rzpOrderId,
+        razorpay_payment_id: fakePaymentId,
+        razorpay_signature: generatedSignature,
         plan: 'PROFESSIONAL',
       }),
     });
-    const simFailData: any = await simFailRes.json();
-    assert(simFailRes.status === 200, 'POST /conversion/checkout/simulate failure returns HTTP 200');
-    assert(simFailData.success === false, 'Failed payment returns success: false');
-
-    // Simulate Payment Success
-    const simSuccessRes = await fetch(`${BASE_URL}/api/v1/conversion/checkout/simulate`, {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        outcome: 'success',
-        plan: 'PROFESSIONAL',
-      }),
-    });
-    const simSuccessData: any = await simSuccessRes.json();
-    assert(simSuccessRes.status === 200, 'POST /conversion/checkout/simulate success returns HTTP 200');
-    assert(simSuccessData.subscription?.status === 'ACTIVE', 'Payment marked subscription as ACTIVE');
+    const verifyData: any = await verifyRes.json();
+    assert(verifyRes.status === 200 && verifyData.success, 'Payment verified via /subscriptions/verify');
+    assert(verifyData.data?.subscription?.status === 'ACTIVE', 'Payment marked subscription as ACTIVE');
 
     const subAfterSuccess = await prisma.subscription.findFirst({
       where: { tenantId: tenant!.id },
@@ -556,15 +522,25 @@ async function runConversionE2ETests() {
     const t2SignupData: any = await t2SignupRes.json();
     const t2Token = t2SignupData.data?.token;
 
-    // Tenant 2 checking outbox
-    const t2OutboxRes = await fetch(`${BASE_URL}/api/v1/conversion/outbox`, {
+    // Tenant 2 checking customers and orders - strict isolation from Tenant 1
+    const t2CustRes = await fetch(`${BASE_URL}/api/v1/customers`, {
       headers: { Authorization: `Bearer ${t2Token}` },
     });
-    const t2OutboxData: any = await t2OutboxRes.json();
-    assert(t2OutboxRes.status === 200, 'Tenant 2 can fetch their own outbox');
+    const t2CustData: any = await t2CustRes.json();
+    assert(t2CustRes.status === 200, 'Tenant 2 can query their own customers');
     assert(
-      t2OutboxData.data?.length === 0,
-      'Tenant 2 sees ZERO messages from Tenant 1 outbox (strict tenant isolation)'
+      (t2CustData.data?.customers?.length || t2CustData.data?.length || 0) === 0,
+      'Tenant 2 sees ZERO customers from Tenant 1 (strict tenant isolation)'
+    );
+
+    const t2OrderRes = await fetch(`${BASE_URL}/api/v1/orders`, {
+      headers: { Authorization: `Bearer ${t2Token}` },
+    });
+    const t2OrderData: any = await t2OrderRes.json();
+    assert(t2OrderRes.status === 200, 'Tenant 2 can query their own orders');
+    assert(
+      (t2OrderData.data?.orders?.length || t2OrderData.data?.length || 0) === 0,
+      'Tenant 2 sees ZERO orders from Tenant 1 (strict tenant isolation)'
     );
 
     // =========================================================================

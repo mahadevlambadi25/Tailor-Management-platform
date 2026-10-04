@@ -33,8 +33,7 @@ import {
   CheckCircle,
   Shield,
   LayoutDashboard,
-  LogOut,
-  MessageCircle
+  LogOut
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
@@ -42,7 +41,6 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'ANNUAL' | 'MONTHLY'>('ANNUAL');
-  const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '919999999999';
   const [activeDashboardTab, setActiveDashboardTab] = useState<'overview' | 'kanban' | 'measurements' | 'ledger'>('overview');
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<number>(3); // Default to Cutting
 
@@ -272,13 +270,10 @@ export const LandingPage: React.FC = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
-                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi, I run a tailoring shop and want to know more.')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-800 font-semibold text-base hover:bg-emerald-100 transition-colors"
+                  href="#features"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-slate-300 bg-white text-slate-800 font-semibold text-base hover:bg-slate-50 hover:border-slate-400 transition-all shadow-xs"
                 >
-                  <MessageCircle className="h-5 w-5 text-emerald-600" />
-                  <span>Chat on WhatsApp</span>
+                  <span>Explore Features →</span>
                 </a>
               </div>
 
@@ -292,7 +287,7 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Hero Visual - Phone Frame Mockup (Measurement -> Order -> Customer Update) */}
+            {/* Right Column: Hero Visual - Phone Frame Mockup (Customer Profile -> Order -> Production Update) */}
             <div className="lg:col-span-6 flex justify-center">
               <div className="relative mx-auto w-full max-w-sm sm:max-w-md">
                 {/* Subtle Ambient Glow */}
@@ -316,7 +311,7 @@ export const LandingPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Step 1: Measurement */}
+                    {/* Step 1: Customer Profile & Measurement */}
                     <div className="rounded-2xl border border-blue-200 bg-white p-3.5 shadow-2xs space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -324,7 +319,7 @@ export const LandingPage: React.FC = () => {
                             1
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-slate-900">Ramesh Patel</div>
+                            <div className="text-xs font-bold text-slate-900">Customer Profile</div>
                             <div className="text-[10px] text-slate-500">Measurement Profile (Inches)</div>
                           </div>
                         </div>
@@ -344,7 +339,7 @@ export const LandingPage: React.FC = () => {
                       <span className="text-slate-300 font-bold text-xs">↓</span>
                     </div>
 
-                    {/* Step 2: Order Creation */}
+                    {/* Step 2: Order Management */}
                     <div className="rounded-2xl border border-indigo-200 bg-white p-3.5 shadow-2xs space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -362,7 +357,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 text-slate-600">
                         <span>Due: <strong className="text-slate-900">Friday, 5:00 PM</strong></span>
-                        <span className="font-semibold text-emerald-600">Paid: ₹5,000 / ₹9,500</span>
+                        <span className="font-semibold text-emerald-600">Paid: ₹5,000</span>
                       </div>
                     </div>
 
@@ -371,24 +366,28 @@ export const LandingPage: React.FC = () => {
                       <span className="text-slate-300 font-bold text-xs">↓</span>
                     </div>
 
-                    {/* Step 3: Customer WhatsApp Update */}
-                    <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-3.5 shadow-2xs space-y-2">
+                    {/* Step 3: Production Update & Customer Portal */}
+                    <div className="rounded-2xl border border-emerald-200 bg-white p-3.5 shadow-2xs space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
-                            <MessageCircle className="h-4 w-4" />
+                          <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                            3
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-slate-900">Customer Update Sent</div>
-                            <div className="text-[10px] text-emerald-700">Instant WhatsApp Notification</div>
+                            <div className="text-xs font-bold text-slate-900">Production Update</div>
+                            <div className="text-[10px] text-slate-500">Track production progress</div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                          Delivered
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Customer Portal
                         </span>
                       </div>
-                      <div className="rounded-xl bg-white border border-emerald-200 p-2.5 text-[11px] text-slate-700 leading-snug">
-                        "Hi Ramesh, your Navy Suit has moved to Cutting. Track live: <span className="text-blue-600 underline">bespoke.me/o/204</span>"
+                      <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-2.5 text-[11px] text-slate-700 flex items-center justify-between">
+                        <span className="font-semibold text-slate-900">Order moved to Cutting</span>
+                        <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Live Status
+                        </span>
                       </div>
                     </div>
 
@@ -1157,7 +1156,7 @@ export const LandingPage: React.FC = () => {
 
                 <div className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pt-2">
                   <span>Sample Invoice #INV-2026-1042 issued for illustration.</span>
-                  <span className="font-semibold text-slate-700">Digital receipt sent via SMS & Customer Portal</span>
+                  <span className="font-semibold text-slate-700">Digital receipt accessible via Customer Portal</span>
                 </div>
               </div>
             )}
@@ -1969,18 +1968,6 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </footer>
-
-      {/* Floating WhatsApp button on mobile */}
-      <a
-        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi, I run a tailoring shop and want to know more.')}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="md:hidden fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-white font-bold shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition-all"
-        aria-label="Chat on WhatsApp"
-      >
-        <MessageCircle className="h-5 w-5" />
-        <span className="text-xs">Chat with us</span>
-      </a>
 
     </div>
   );

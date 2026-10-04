@@ -62,7 +62,7 @@ export const ExpiredTrialBanner: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/upgrade')}
+            onClick={() => navigate('/subscription')}
             className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg bg-white px-3.5 py-1.5 text-xs font-bold text-amber-900 shadow-xs hover:bg-amber-50 active:scale-98 transition-all shrink-0"
           >
             <span>Continue my shop</span>
@@ -118,7 +118,7 @@ export const ExpiredTrialBanner: React.FC = () => {
               <button
                 onClick={() => {
                   setIsSheetOpen(false);
-                  navigate('/upgrade');
+                  navigate('/subscription');
                 }}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 hover:bg-blue-700 transition flex items-center justify-center gap-1.5"
               >

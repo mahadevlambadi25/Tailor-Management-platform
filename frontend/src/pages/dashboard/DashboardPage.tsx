@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import { api } from '../../api/client';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { formatCurrency, formatNumber } from '../../utils/currency';
@@ -25,6 +26,8 @@ import { TeamInviteModal } from '../../components/conversion/TeamInviteModal';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
+  const currentTenantId = user?.tenant?.id || tenant?.id;
   const [metrics, setMetrics] = useState<any>(null);
   const [managerMetrics, setManagerMetrics] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
@@ -78,14 +81,50 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadDashboard();
+
     if (user?.role === 'SHOP_OWNER') {
+      const tenantId = user?.tenant?.id || tenant?.id;
+      const completedKey = tenantId ? `onboarding_completed_${tenantId}` : null;
+      const dismissedKey = tenantId ? `onboarding_dismissed_${tenantId}` : null;
+
+      // Fast check: if completed or dismissed locally for this tenant, do not show
+      if (
+        (completedKey && localStorage.getItem(completedKey) === 'true') ||
+        (dismissedKey && (localStorage.getItem(dismissedKey) === 'true' || sessionStorage.getItem(dismissedKey) === 'true'))
+      ) {
+        setShowOnboarding(false);
+        return;
+      }
+
+      let isCancelled = false;
+
       api.get('/conversion/onboarding/status').then(res => {
-        if (res.data?.success && !res.data.data?.completed) {
-          setShowOnboarding(true);
+        if (isCancelled) return;
+        const data = res.data?.data;
+        const isCompleted = Boolean(data?.onboardingCompleted ?? data?.completed);
+
+        if (isCompleted) {
+          if (completedKey) localStorage.setItem(completedKey, 'true');
+          setShowOnboarding(false);
+        } else if (res.data?.success) {
+          // Double-check local dismissal in case user dismissed while call was in flight
+          const isDismissed = dismissedKey && (
+            localStorage.getItem(dismissedKey) === 'true' ||
+            sessionStorage.getItem(dismissedKey) === 'true'
+          );
+          if (!isDismissed) {
+            setShowOnboarding(true);
+          }
         }
       }).catch(() => {});
+
+      return () => {
+        isCancelled = true;
+      };
+    } else {
+      setShowOnboarding(false);
     }
-  }, [loadDashboard, user?.role]);
+  }, [loadDashboard, user?.role, user?.tenant?.id, tenant?.id]);
 
   // Loading State with Shimmer Skeletons
   if (loading) {
@@ -611,8 +650,20 @@ export const DashboardPage: React.FC = () => {
       <OnboardingModal
         isOpen={showOnboarding}
         firstName={user?.name?.split(' ')[0] || 'there'}
-        onComplete={() => setShowOnboarding(false)}
-        onSkip={() => setShowOnboarding(false)}
+        tenantId={currentTenantId}
+        onComplete={() => {
+          if (currentTenantId) {
+            localStorage.setItem(`onboarding_completed_${currentTenantId}`, 'true');
+          }
+          setShowOnboarding(false);
+        }}
+        onSkip={() => {
+          if (currentTenantId) {
+            localStorage.setItem(`onboarding_dismissed_${currentTenantId}`, 'true');
+            sessionStorage.setItem(`onboarding_dismissed_${currentTenantId}`, 'true');
+          }
+          setShowOnboarding(false);
+        }}
       />
 
       <AhaModal

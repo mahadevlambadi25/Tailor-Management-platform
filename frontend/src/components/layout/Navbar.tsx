@@ -153,11 +153,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
           {tenant?.subscription?.status !== 'ACTIVE' && (
             <button
               type="button"
-              onClick={() => navigate('/upgrade')}
-              className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md hover:from-blue-700 hover:to-indigo-700 active:scale-98 transition-all shrink-0"
+              onClick={() => navigate('/subscription')}
+              className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-xs font-bold text-white shadow-xs hover:shadow-md hover:shadow-indigo-500/20 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
+              title="Upgrade Subscription & Plans"
+              aria-label="Upgrade Subscription"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Upgrade</span>
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 fill-amber-300/20 shrink-0" />
+              <span>Upgrade</span>
             </button>
           )}
 

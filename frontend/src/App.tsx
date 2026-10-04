@@ -119,7 +119,7 @@ export function App() {
 
                     {/* Atelier Subscription & Billing Lifecycle */}
                     <Route path="/subscription" element={<SubscriptionPage />} />
-                    <Route path="/upgrade" element={<UpgradePage />} />
+                    <Route path="/upgrade" element={<Navigate to="/subscription" replace />} />
 
 
                     {/* Admin Conversion Telemetry (Super Admin Only) */}

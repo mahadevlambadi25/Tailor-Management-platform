@@ -2,12 +2,24 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../core/prisma';
 import '../../middleware/tenantContext';
 import { subscriptionService } from '../subscriptions/subscriptionService';
+import { getDemoStats } from '../demo/demoService';
 
 export class TenantsController {
   static async getTenant(req: Request, res: Response, next: NextFunction) {
     try {
-      // Ensure subscription status is up to date (auto-expiring trial if expired)
       const currentSub = await subscriptionService.checkSubscriptionStatus(req.tenantId!);
+      let demoStats = {
+        demoOrdersCount: 0,
+        demoCustomersCount: 0,
+        demoAppointmentsCount: 0,
+        demoInventoryCount: 0,
+        hasDemoData: false
+      };
+      try {
+        demoStats = await getDemoStats(req.tenantId!);
+      } catch {
+        // resilient fallback on network blips
+      }
 
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId },
@@ -24,7 +36,10 @@ export class TenantsController {
 
       return res.json({
         success: true,
-        data: tenant
+        data: {
+          ...tenant,
+          demoStats
+        }
       });
     } catch (err) { next(err); }
   }
