@@ -153,7 +153,8 @@ async function run() {
     const mobileViewports = [
       { name: 'iPhone 12/13/14', width: 390, height: 844 },
       { name: 'iPhone 14/15 Pro', width: 393, height: 852 },
-      { name: 'Galaxy / Pixel', width: 412, height: 915 }
+      { name: 'Galaxy / Pixel', width: 412, height: 915 },
+      { name: 'Narrow Mobile', width: 360, height: 800 }
     ];
 
     console.log('\n[3/6] Testing Mobile Viewports (Vertical Scroll & No Horizontal Overflow)...');
@@ -222,7 +223,7 @@ async function run() {
     }
 
     // Step 4: Mobile Navbar layout & controls
-    console.log('\n[4/6] Verifying Mobile Navbar Elements & Secondary Actions Scoping...');
+    console.log('\n[4/6] Verifying Mobile Navbar Height, Vertical Centering & No Clipping...');
     await client.setViewport(390, 844, true);
     await client.wait(500);
 
@@ -231,12 +232,20 @@ async function run() {
         const header = document.querySelector('header');
         if (!header) return { found: false };
 
+        const headerRect = header.getBoundingClientRect();
+        const main = document.querySelector('main');
+        const mainRect = main ? main.getBoundingClientRect() : null;
+
         const hamburger = header.querySelector('button[aria-label*="mobile navigation"], button[aria-label*="Open mobile"]');
+        const logo = header.querySelector('div.bg-blue-600.text-white');
         const searchBtn = header.querySelector('button[aria-label*="Search"]');
         const keyBtn = header.querySelector('button[aria-label="Change Password"]');
-        const desktopSearch = header.querySelector('form.hidden.md\\\\:flex, form input[type="text"]');
-        const wifiIndicator = header.querySelector('.hidden.md\\\\:flex svg.lucide-wifi, .hidden.md\\\\:flex svg.lucide-wifi-off');
-        const logoutBtn = header.querySelector('button[aria-label="Logout"].hidden.md\\\\:flex');
+        const subtitle = header.querySelector('span.hidden.md\\\\:block');
+
+        const hamburgerRect = hamburger ? hamburger.getBoundingClientRect() : null;
+        const logoRect = logo ? logo.getBoundingClientRect() : null;
+        const searchRect = searchBtn ? searchBtn.getBoundingClientRect() : null;
+        const keyRect = keyBtn ? keyBtn.getBoundingClientRect() : null;
 
         // Check computed styles on mobile (width 390px)
         const isHamburgerVisible = hamburger ? window.getComputedStyle(hamburger).display !== 'none' : false;
@@ -250,25 +259,58 @@ async function run() {
         const logoutEl = header.querySelector('button[aria-label="Logout"]');
         const isLogoutHiddenOnMobile = logoutEl ? window.getComputedStyle(logoutEl).display === 'none' : true;
 
+        const isSubtitleHiddenOnMobile = subtitle ? window.getComputedStyle(subtitle).display === 'none' : true;
+
+        // Clipping checks: all elements must fit completely within header vertically
+        const hamburgerNotClipped = hamburgerRect ? (hamburgerRect.top >= headerRect.top && hamburgerRect.bottom <= headerRect.bottom) : false;
+        const logoNotClipped = logoRect ? (logoRect.top >= headerRect.top && logoRect.bottom <= headerRect.bottom) : false;
+        const searchNotClipped = searchRect ? (searchRect.top >= headerRect.top && searchRect.bottom <= headerRect.bottom) : false;
+        const keyNotClipped = keyRect ? (keyRect.top >= headerRect.top && keyRect.bottom <= headerRect.bottom) : false;
+        const mainStartsBelowHeader = mainRect ? (mainRect.top >= headerRect.bottom - 1) : false;
+
         return {
           found: true,
+          headerHeight: headerRect.height,
           isHamburgerVisible,
           isSearchBtnVisible,
           isKeyBtnVisible,
           isWifiHiddenOnMobile,
-          isLogoutHiddenOnMobile
+          isLogoutHiddenOnMobile,
+          isSubtitleHiddenOnMobile,
+          hamburgerNotClipped,
+          logoNotClipped,
+          searchNotClipped,
+          keyNotClipped,
+          mainStartsBelowHeader
         };
       })()
     `);
 
+    if (navbarChecks.headerHeight < 64 || navbarChecks.headerHeight > 74) {
+      throw new Error(`Navbar height is outside 64–72px range: ${navbarChecks.headerHeight}px`);
+    }
+    console.log(`  ✔ PASS: Navbar has stable height (${navbarChecks.headerHeight}px, matches 64–72px requirement)`);
+
     if (!navbarChecks.isHamburgerVisible) throw new Error('Hamburger menu button is not visible on mobile');
     console.log('  ✔ PASS: Hamburger menu button is visible on mobile');
 
-    if (!navbarChecks.isSearchBtnVisible) throw new Error('Mobile search button is not visible');
-    console.log('  ✔ PASS: Mobile search button is visible');
+    if (!navbarChecks.hamburgerNotClipped) throw new Error('Hamburger icon is vertically clipped by navbar');
+    console.log('  ✔ PASS: Hamburger icon is fully visible and not clipped at top');
 
-    if (!navbarChecks.isKeyBtnVisible) throw new Error('Quick password/profile button is not visible');
-    console.log('  ✔ PASS: Quick password/profile button is visible on mobile');
+    if (!navbarChecks.logoNotClipped) throw new Error('Logo is vertically clipped by navbar');
+    console.log('  ✔ PASS: Blue logo icon is fully visible, centered, and not clipped at top');
+
+    if (!navbarChecks.isSearchBtnVisible || !navbarChecks.searchNotClipped) throw new Error('Search button is missing or clipped');
+    console.log('  ✔ PASS: Search button is fully visible, centered, and not clipped');
+
+    if (!navbarChecks.isKeyBtnVisible || !navbarChecks.keyNotClipped) throw new Error('Key button is missing or clipped');
+    console.log('  ✔ PASS: Quick password/key button is fully visible, centered, and not clipped');
+
+    if (!navbarChecks.isSubtitleHiddenOnMobile) throw new Error('Location/role subtitle should be hidden on mobile row');
+    console.log('  ✔ PASS: Location & role subtitle ("Bangalore • SHOP_OWNER") is cleanly hidden on mobile');
+
+    if (!navbarChecks.mainStartsBelowHeader) throw new Error('Dashboard content overlaps with navbar');
+    console.log('  ✔ PASS: Dashboard content starts cleanly below the navbar without overlap');
 
     if (!navbarChecks.isWifiHiddenOnMobile) throw new Error('Wifi indicator should be hidden in mobile navbar row');
     console.log('  ✔ PASS: Wifi/status indicator is safely hidden in mobile navbar row');
