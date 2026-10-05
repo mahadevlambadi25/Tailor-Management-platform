@@ -30,8 +30,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex flex-col w-full border-b border-slate-200 bg-white shadow-xs shrink-0 pt-[env(safe-area-inset-top,0px)]">
-      <div className="flex h-16 min-h-[64px] items-center justify-between px-3 sm:px-6 w-full">
+    <>
+      <header className="fixed top-0 left-0 right-0 z-30 md:sticky md:top-0 flex flex-col w-full border-b border-slate-200 bg-white shadow-xs shrink-0 pt-[env(safe-area-inset-top,0px)]">
+        <div className="flex h-16 min-h-[64px] items-center justify-between px-3 sm:px-6 w-full">
         {/* Left: Mobile Menu Hamburger, Logo & Shop Name */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
           {/* Hamburger button on mobile */}
@@ -219,5 +220,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
         onClose={() => setShowOwnPasswordModal(false)}
       />
     </header>
-  );
+
+    {/* Spacer to reserve mobile navbar height so dashboard content never overlaps */}
+    <div className="h-[calc(4rem+env(safe-area-inset-top,0px))] md:hidden shrink-0" aria-hidden="true" />
+  </>
+);
 };
