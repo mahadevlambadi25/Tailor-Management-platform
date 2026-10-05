@@ -442,6 +442,13 @@ export class AuthController {
         return res.status(404).json({ success: false, error: { message: 'User not found' } });
       }
 
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Account has been deactivated', code: 'ACCOUNT_DEACTIVATED' }
+        });
+      }
+
       return res.json({
         success: true,
         data: {

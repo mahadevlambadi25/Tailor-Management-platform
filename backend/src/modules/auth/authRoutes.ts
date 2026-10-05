@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AuthController } from './authController';
+import { UsersController } from '../users/usersController';
 import { tenantContext } from '../../middleware/tenantContext';
 import { authGuard } from '../../middleware/authGuard';
 import { rateLimiter } from '../../middleware/rateLimiter';
@@ -18,7 +19,9 @@ router.use(tenantContext);
 
 router.post('/login', rateLimiter(60000, 15), AuthController.staffLogin);
 router.get('/me', authGuard, AuthController.getMe);
+router.post('/change-password', authGuard, UsersController.changeOwnPassword);
 router.post('/customer/request-otp', rateLimiter(60000, 5), AuthController.requestCustomerOtp);
 router.post('/customer/verify-otp', rateLimiter(60000, 10), AuthController.verifyCustomerOtp);
 
 export default router;
+

@@ -9,14 +9,23 @@ import { track } from '../conversion/funnelService';
 export class UsersController {
   static async list(req: Request, res: Response, next: NextFunction) {
     try {
+      const { status } = req.query;
+      const where: any = { tenantId: req.tenantId! };
+      if (status === 'active') {
+        where.isActive = true;
+      } else if (status === 'inactive' || status === 'deactivated') {
+        where.isActive = false;
+      }
+
       const users = await prisma.user.findMany({
-        where: { tenantId: req.tenantId!, isActive: true },
+        where,
         select: {
           id: true,
           name: true,
           email: true,
           phone: true,
           role: true,
+          isActive: true,
           staffCode: true,
           skills: true,
           branch: { select: { id: true, name: true } },
@@ -173,6 +182,394 @@ export class UsersController {
           temporaryPassword: tempPassword
         },
         temporaryPassword: tempPassword
+      });
+    } catch (err) { next(err); }
+  }
+
+  // 1. Staff member can change their OWN password
+  static async changeOwnPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required.', code: 'UNAUTHORIZED' }
+        });
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+
+      if (!currentPassword || typeof currentPassword !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Current password is required.', code: 'MISSING_CURRENT_PASSWORD' }
+        });
+      }
+
+      if (!newPassword || typeof newPassword !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New password is required.', code: 'MISSING_NEW_PASSWORD' }
+        });
+      }
+
+      if (!confirmPassword || typeof confirmPassword !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Please confirm your new password.', code: 'MISSING_CONFIRM_PASSWORD' }
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Password must be at least 6 characters long.', code: 'PASSWORD_TOO_SHORT' }
+        });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New password and confirmation do not match.', code: 'PASSWORDS_DONT_MATCH' }
+        });
+      }
+
+      // Fetch user strictly scoped to authenticated tenant
+      const user = await prisma.user.findFirst({
+        where: { id: req.user.id, tenantId: req.tenantId!, isActive: true }
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'User account not found or deactivated.', code: 'USER_NOT_FOUND' }
+        });
+      }
+
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Current password is incorrect.', code: 'INVALID_CURRENT_PASSWORD' }
+        });
+      }
+
+      if (currentPassword === newPassword) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New password cannot be the same as your current password.', code: 'PASSWORD_UNCHANGED' }
+        });
+      }
+
+      // Hash and update
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash }
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          tenantId: req.tenantId!,
+          userId: user.id,
+          action: 'STAFF_PASSWORD_CHANGED',
+          entity: 'User',
+          entityId: user.id,
+          ipAddress: req.ip
+        }
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: 'Your password has been changed successfully.'
+      });
+    } catch (err) { next(err); }
+  }
+
+  // 2. Authorized workspace admin/owner can reset a staff member's password
+  static async resetStaffPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { newPassword, confirmPassword } = req.body;
+
+      if (!newPassword || typeof newPassword !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New password is required.', code: 'MISSING_NEW_PASSWORD' }
+        });
+      }
+
+      if (!confirmPassword || typeof confirmPassword !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Please confirm the new password.', code: 'MISSING_CONFIRM_PASSWORD' }
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Password must be at least 6 characters long.', code: 'PASSWORD_TOO_SHORT' }
+        });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New password and confirmation do not match.', code: 'PASSWORDS_DONT_MATCH' }
+        });
+      }
+
+      // Tenant isolation: Target staff MUST belong to current tenant
+      const targetUser = await prisma.user.findFirst({
+        where: { id, tenantId: req.tenantId! }
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Staff member not found.', code: 'STAFF_NOT_FOUND' }
+        });
+      }
+
+      // Permission check: Only SHOP_OWNER and MANAGER can reset staff passwords
+      const actorRole = req.user?.role as RoleType;
+      if (actorRole !== RoleType.SHOP_OWNER && actorRole !== RoleType.MANAGER && actorRole !== RoleType.SAAS_OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Unauthorized: insufficient privileges to reset staff password.', code: 'FORBIDDEN_ROLE' }
+        });
+      }
+
+      // Permission check: Managers cannot reset Shop Owner / SaaS Owner password
+      if (actorRole === RoleType.MANAGER && (targetUser.role === RoleType.SHOP_OWNER || targetUser.role === RoleType.SAAS_OWNER)) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Managers cannot reset shop owner passwords.', code: 'FORBIDDEN_ACTION' }
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { passwordHash }
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          tenantId: req.tenantId!,
+          userId: req.user?.id,
+          action: 'STAFF_PASSWORD_RESET_BY_ADMIN',
+          entity: 'User',
+          entityId: targetUser.id,
+          details: { resetBy: req.user?.email, targetEmail: targetUser.email, targetRole: targetUser.role },
+          ipAddress: req.ip
+        }
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: `Password for ${targetUser.name} has been reset successfully.`
+      });
+    } catch (err) { next(err); }
+  }
+
+  // 3. Authorized workspace admin/owner can DEACTIVATE or ACTIVATE a staff member
+  static async updateStaffStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'isActive boolean flag is required.', code: 'INVALID_STATUS' }
+        });
+      }
+
+      // Tenant isolation
+      const targetUser = await prisma.user.findFirst({
+        where: { id, tenantId: req.tenantId! }
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Staff member not found.', code: 'STAFF_NOT_FOUND' }
+        });
+      }
+
+      // Prevent self-deactivation
+      if (targetUser.id === req.user?.id && !isActive) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'You cannot deactivate your own account.', code: 'SELF_DEACTIVATION_NOT_ALLOWED' }
+        });
+      }
+
+      // Permission check: Only SHOP_OWNER and MANAGER can change staff status
+      const actorRole = req.user?.role as RoleType;
+      if (actorRole !== RoleType.SHOP_OWNER && actorRole !== RoleType.MANAGER && actorRole !== RoleType.SAAS_OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Unauthorized: insufficient privileges to change staff status.', code: 'FORBIDDEN_ROLE' }
+        });
+      }
+
+      // Manager cannot modify shop owner
+      if (actorRole === RoleType.MANAGER && targetUser.role === RoleType.SHOP_OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Managers cannot change shop owner status.', code: 'FORBIDDEN_ACTION' }
+        });
+      }
+
+      // Protect primary workspace owner
+      if (targetUser.role === RoleType.SHOP_OWNER && !isActive) {
+        const activeOwners = await prisma.user.count({
+          where: { tenantId: req.tenantId!, role: RoleType.SHOP_OWNER, isActive: true }
+        });
+        if (activeOwners <= 1) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Cannot deactivate the primary workspace owner.', code: 'PROTECTED_OWNER_ACCOUNT' }
+          });
+        }
+      }
+
+      if (targetUser.isActive === isActive) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: isActive ? 'Staff member is already active.' : 'Staff member is already deactivated.',
+            code: 'STAFF_STATUS_UNCHANGED'
+          }
+        });
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { isActive },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true
+        }
+      });
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          tenantId: req.tenantId!,
+          userId: req.user?.id,
+          action: isActive ? 'STAFF_ACTIVATED' : 'STAFF_DEACTIVATED',
+          entity: 'User',
+          entityId: targetUser.id,
+          details: { updatedBy: req.user?.email, targetEmail: targetUser.email, targetRole: targetUser.role },
+          ipAddress: req.ip
+        }
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: `Staff member ${updated.name} has been ${isActive ? 'activated' : 'deactivated'} successfully.`,
+        data: updated
+      });
+    } catch (err) { next(err); }
+  }
+
+  // 4. Authorized workspace admin/owner can DELETE a staff member
+  static async deleteStaff(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      // Permission check: Only SHOP_OWNER can delete staff members
+      const actorRole = req.user?.role as RoleType;
+      if (actorRole !== RoleType.SHOP_OWNER && actorRole !== RoleType.SAAS_OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: { message: 'Only workspace owners can delete staff members.', code: 'FORBIDDEN_ROLE' }
+        });
+      }
+
+      // Tenant isolation
+      const targetUser = await prisma.user.findFirst({
+        where: { id, tenantId: req.tenantId! }
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Staff member not found.', code: 'STAFF_NOT_FOUND' }
+        });
+      }
+
+      // Current logged in user must NOT delete themselves
+      if (targetUser.id === req.user?.id) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'You cannot delete your own account.', code: 'SELF_DELETE_NOT_ALLOWED' }
+        });
+      }
+
+      // Protect critical workspace ownership
+      if (targetUser.role === RoleType.SHOP_OWNER || targetUser.role === RoleType.SAAS_OWNER) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Workspace owner accounts cannot be deleted.', code: 'PROTECTED_OWNER_ACCOUNT' }
+        });
+      }
+
+      // Check whether staff/user is referenced by foreign-key relational records
+      const [jobsCount, appointmentsCount, alterationsCount, auditCount] = await Promise.all([
+        prisma.productionJob.count({ where: { assignedToId: targetUser.id } }),
+        prisma.appointment.count({ where: { staffId: targetUser.id } }),
+        prisma.alteration.count({ where: { assignedToId: targetUser.id } }),
+        prisma.auditLog.count({ where: { userId: targetUser.id } })
+      ]);
+
+      const hasHistoricalRecords = (jobsCount + appointmentsCount + alterationsCount + auditCount) > 0;
+
+      if (hasHistoricalRecords) {
+        // Safe soft-decommission to preserve relational data and business history without foreign-key violation
+        await prisma.user.update({
+          where: { id: targetUser.id },
+          data: {
+            isActive: false,
+            passwordHash: `DECOMMISSIONED_${crypto.randomUUID()}`
+          }
+        });
+      } else {
+        // Safely hard delete since no relational records reference this user
+        await prisma.user.delete({
+          where: { id: targetUser.id }
+        });
+      }
+
+      // Audit Log
+      await prisma.auditLog.create({
+        data: {
+          tenantId: req.tenantId!,
+          userId: req.user?.id,
+          action: 'STAFF_DELETED',
+          entity: 'User',
+          entityId: targetUser.id,
+          details: {
+            deletedStaffName: targetUser.name,
+            deletedStaffEmail: targetUser.email,
+            wasSoftDecommissioned: hasHistoricalRecords
+          },
+          ipAddress: req.ip
+        }
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: `Staff member ${targetUser.name} has been removed successfully.`
       });
     } catch (err) { next(err); }
   }

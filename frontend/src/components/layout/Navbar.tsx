@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useOfflineSync } from '../../context/OfflineSyncContext';
-import { Search, Globe, LogOut, Wifi, WifiOff, Scissors, Menu, HelpCircle, Sparkles } from 'lucide-react';
+import { ChangeOwnPasswordModal } from '../staff/ChangeOwnPasswordModal';
+import { Search, Globe, LogOut, Wifi, WifiOff, Scissors, Menu, HelpCircle, Sparkles, KeyRound } from 'lucide-react';
 
 interface NavbarProps {
   onToggleMobileMenu?: () => void;
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
   const { isOnline } = useOfflineSync();
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showOwnPasswordModal, setShowOwnPasswordModal] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -132,11 +134,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             </button>
           </div>
 
-          {/* Desktop User Info */}
-          <div className="hidden xl:flex flex-col items-end text-right">
-            <span className="text-xs font-bold text-slate-800">{user?.name}</span>
+          {/* Desktop User Info - click to change password */}
+          <button
+            type="button"
+            onClick={() => setShowOwnPasswordModal(true)}
+            title="Account Settings • Change Password"
+            className="hidden xl:flex flex-col items-end text-right group cursor-pointer"
+          >
+            <span className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{user?.name}</span>
             <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">{user?.role}</span>
-          </div>
+          </button>
 
           {/* Replay Guided Tour */}
           <button
@@ -162,6 +169,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
               <span>Upgrade</span>
             </button>
           )}
+
+          {/* Change Password button for logged-in user */}
+          <button
+            type="button"
+            onClick={() => setShowOwnPasswordModal(true)}
+            title="Change Password"
+            aria-label="Change Password"
+            className="p-2 min-h-touch min-w-touch flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors cursor-pointer"
+          >
+            <KeyRound className="h-4 w-4" />
+          </button>
 
           {/* Logout button */}
           <button
@@ -191,6 +209,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
           </div>
         </form>
       )}
+
+      {/* Change Own Password Modal */}
+      <ChangeOwnPasswordModal
+        isOpen={showOwnPasswordModal}
+        onClose={() => setShowOwnPasswordModal(false)}
+      />
     </header>
   );
 };
