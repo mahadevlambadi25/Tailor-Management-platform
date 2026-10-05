@@ -76,7 +76,7 @@ export const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 antialiased overflow-hidden">
+    <div className="flex h-screen h-[100dvh] flex-col bg-slate-50 antialiased overflow-hidden">
       <Navbar onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)} />
 
       {/* Top Conversion Banners */}
@@ -98,9 +98,9 @@ export const AppLayout: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative min-h-0">
         <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 touch-pan-x">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 p-3 sm:p-6 lg:p-8 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-8 touch-pan-y overscroll-y-contain">
           <Outlet />
         </main>
       </div>

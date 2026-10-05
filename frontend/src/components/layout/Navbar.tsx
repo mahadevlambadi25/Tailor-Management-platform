@@ -96,8 +96,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <Search className="h-4 w-4" />
           </button>
 
-          {/* Offline / Online indicator */}
-          <div className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium border border-slate-200 bg-slate-50">
+          {/* Offline / Online indicator - desktop */}
+          <div className="hidden md:flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium border border-slate-200 bg-slate-50">
             {isOnline ? (
               <>
                 <Wifi className="h-3 w-3 text-emerald-600" />
@@ -111,8 +111,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             )}
           </div>
 
-          {/* Language Switcher - Compact on mobile */}
-          <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-[10px] font-medium">
+          {/* Language Switcher - desktop */}
+          <div className="hidden md:flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-[10px] font-medium">
             <Globe className="h-3 w-3 text-slate-400 ml-1 hidden sm:inline" />
             <button
               onClick={() => setLanguage('en')}
@@ -145,13 +145,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">{user?.role}</span>
           </button>
 
-          {/* Replay Guided Tour */}
+          {/* Replay Guided Tour - desktop */}
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('start_guided_tour'))}
             title="Interactive Walkthrough"
             aria-label="Help and walkthrough"
-            className="p-2 min-h-touch min-w-touch flex items-center justify-center text-slate-500 hover:text-blue-600 rounded-xl hover:bg-slate-100 transition-colors"
+            className="hidden md:flex p-2 min-h-touch min-w-touch items-center justify-center text-slate-500 hover:text-blue-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <HelpCircle className="h-4 w-4" />
           </button>
@@ -161,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <button
               type="button"
               onClick={() => navigate('/subscription')}
-              className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-xs font-bold text-white shadow-xs hover:shadow-md hover:shadow-indigo-500/20 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-xs font-bold text-white shadow-xs hover:shadow-md hover:shadow-indigo-500/20 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
               title="Upgrade Subscription & Plans"
               aria-label="Upgrade Subscription"
             >
@@ -170,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             </button>
           )}
 
-          {/* Change Password button for logged-in user */}
+          {/* Change Password button for logged-in user (mobile & desktop) */}
           <button
             type="button"
             onClick={() => setShowOwnPasswordModal(true)}
@@ -181,12 +181,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
             <KeyRound className="h-4 w-4" />
           </button>
 
-          {/* Logout button */}
+          {/* Logout button - desktop */}
           <button
             onClick={logout}
             title={t('logout')}
             aria-label="Logout"
-            className="p-2 min-h-touch min-w-touch flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors"
+            className="hidden md:flex p-2 min-h-touch min-w-touch items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
           </button>

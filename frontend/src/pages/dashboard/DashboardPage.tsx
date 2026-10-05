@@ -308,28 +308,28 @@ export const DashboardPage: React.FC = () => {
               : 'Live operational indicators, revenue reconciliation and delivery queues.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
           <button
             onClick={loadDashboard}
             title="Refresh dashboard data"
-            className="p-2.5 min-h-touch min-w-touch rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-2xs flex items-center justify-center"
+            className="p-2.5 min-h-touch min-w-touch rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-2xs flex items-center justify-center shrink-0"
             aria-label="Refresh data"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
           <Link
             to="/orders/new"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 min-h-touch text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-98"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 min-h-touch text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-98 whitespace-nowrap"
           >
-            <PlusCircle className="h-4 w-4" />
+            <PlusCircle className="h-4 w-4 shrink-0" />
             <span>New Walk-in Order</span>
           </Link>
           {(user?.role === 'SHOP_OWNER' || user?.role === 'MANAGER') && (
             <Link
               to="/production"
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 min-h-touch text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs active:scale-98"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 min-h-touch text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs active:scale-98 whitespace-nowrap"
             >
-              <KanbanSquare className="h-4 w-4" />
+              <KanbanSquare className="h-4 w-4 shrink-0" />
               <span>Production Board</span>
             </Link>
           )}

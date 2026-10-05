@@ -11,7 +11,7 @@
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto;
   }
 }
 
@@ -28,9 +28,10 @@
   .min-w-touch {
     min-width: 44px;
   }
-  .touch-pan-x {
-    touch-action: pan-x;
+  .touch-pan-y {
+    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 }
 
