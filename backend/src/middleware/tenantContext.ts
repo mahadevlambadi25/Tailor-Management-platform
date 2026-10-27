@@ -88,7 +88,7 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
     });
 
     if (!tenant) {
-      if (req.path.includes('/login')) {
+      if (req.path.includes('/login') || req.path.includes('/register')) {
         return next();
       }
       return res.status(404).json({
@@ -98,6 +98,9 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
     }
 
     if (!tenant.isActive) {
+      if (req.path.includes('/login') || req.path.includes('/register')) {
+        return next();
+      }
       return res.status(403).json({
         success: false,
         error: { message: 'Tenant subscription is inactive or suspended', code: 'TENANT_INACTIVE' }

@@ -12,12 +12,12 @@ router.get('/google', rateLimiter(60000, 30), AuthController.googleRedirect);
 router.get('/google/callback', AuthController.googleCallback);
 router.post('/google', rateLimiter(60000, 20), AuthController.googleTokenLogin);
 
-// Public Registration Endpoint
+// Public Registration & Authentication Endpoints
 router.post('/register', rateLimiter(60000, 10), AuthController.staffRegister);
+router.post('/login', rateLimiter(60000, 15), AuthController.staffLogin);
 
 router.use(tenantContext);
 
-router.post('/login', rateLimiter(60000, 15), AuthController.staffLogin);
 router.get('/me', authGuard, AuthController.getMe);
 router.post('/change-password', authGuard, UsersController.changeOwnPassword);
 router.post('/customer/request-otp', rateLimiter(60000, 5), AuthController.requestCustomerOtp);

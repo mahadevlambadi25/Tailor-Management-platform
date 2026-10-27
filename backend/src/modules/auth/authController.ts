@@ -18,25 +18,39 @@ export class AuthController {
       const { email, password } = req.body;
       let tenantId = req.tenantId;
 
-      if (!email || !password) {
+      const cleanEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
+      if (!cleanEmail || !password || typeof password !== 'string') {
         return res.status(400).json({
           success: false,
           error: { message: 'Email and password are required', code: 'MISSING_FIELDS' }
         });
       }
 
-      // If client explicitly supplied a tenant slug in request body (e.g. workspace picker), try that tenant first
-      const explicitBodySlug = req.body?.tenantSlug ? String(req.body.tenantSlug).trim() : '';
+      // If client explicitly supplied a tenant slug in request body or header (e.g. workspace picker), resolve that tenant
+      const explicitBodySlug = (req.body?.tenantSlug || req.headers['x-tenant-slug'])
+        ? String(req.body?.tenantSlug || req.headers['x-tenant-slug']).trim()
+        : '';
       let user = null;
 
-      if (explicitBodySlug && tenantId) {
-        user = await prisma.user.findFirst({
-          where: {
-            tenantId,
-            email: email.toLowerCase().trim()
-          },
-          include: { branch: true, tenant: true }
-        });
+      if (explicitBodySlug) {
+        if (!tenantId) {
+          const explicitTenant = await prisma.tenant.findUnique({
+            where: { slug: explicitBodySlug }
+          });
+          if (explicitTenant) {
+            tenantId = explicitTenant.id;
+          }
+        }
+
+        if (tenantId) {
+          user = await prisma.user.findFirst({
+            where: {
+              tenantId,
+              email: cleanEmail
+            },
+            include: { branch: true, tenant: true }
+          });
+        }
       }
 
       // If user was not found under explicit tenant, do not auto-resolve across other workspaces.
@@ -44,7 +58,7 @@ export class AuthController {
       if (!user && !explicitBodySlug) {
         const candidateUsers = await prisma.user.findMany({
           where: {
-            email: email.toLowerCase().trim()
+            email: cleanEmail
           },
           include: { branch: true, tenant: true }
         });

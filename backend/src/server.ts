@@ -10,8 +10,12 @@ async function bootstrap() {
       throw new Error('FATAL: DATABASE_URL environment variable is not defined. Please configure DATABASE_URL in your Render Web Service environment variables.');
     }
 
+    logger.info('Connecting to PostgreSQL database...');
     await prisma.$connect();
-    logger.info('Database connected successfully.');
+
+    // Verify database responsiveness with a lightweight test query
+    await prisma.$queryRaw`SELECT 1`;
+    logger.info('Database connectivity and query execution verified successfully.');
 
     // Start conversion trial nudge scheduler (if enabled)
     NudgeScheduler.start();
@@ -24,7 +28,7 @@ async function bootstrap() {
       logger.info(`Health check available at /health and /api/v1/health`);
     });
 
-    // Configure connection timeouts for high-concurrency reverse proxy stability (Nginx/ALB)
+    // Configure connection timeouts for high-concurrency reverse proxy stability (Nginx/ALB/Render)
     server.keepAliveTimeout = 65000;
     server.headersTimeout = 66000;
 
@@ -49,7 +53,10 @@ async function bootstrap() {
       logger.error('Uncaught Exception at process level:', err);
     });
   } catch (err: any) {
-    logger.error('Failed to start server:', err);
+    logger.error('Failed to start server:', err?.message || err);
+    if (err?.code === 'P1001') {
+      logger.error('Diagnostic Note: Prisma P1001 means the database server cannot be reached. For Supabase on Render, use the connection pooler hostname (e.g. aws-0-[region].pooler.supabase.com) on port 6543 (transaction) or 5432 (session) rather than direct db.[ref].supabase.co (which resolves to IPv6 only).');
+    }
     process.exit(1);
   }
 }

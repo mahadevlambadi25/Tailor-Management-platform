@@ -5,6 +5,7 @@ export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL || '',
+  directUrl: process.env.DIRECT_URL || process.env.DATABASE_URL || '',
   jwtSecret: process.env.JWT_SECRET || 'supersecret_tailor_access_key_2026_jwt',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'supersecret_tailor_refresh_key_2026_jwt',
