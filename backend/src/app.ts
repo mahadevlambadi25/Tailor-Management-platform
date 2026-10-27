@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import { config } from './config';
+import { prisma } from './core/prisma';
 import { errorHandler } from './middleware/errorHandler';
 
 // Route Imports
@@ -80,12 +81,71 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/v1/storage', express.static(path.resolve(config.storageLocalDir)));
 
 // System Health Checks (supporting Render root/health probes as well as API path)
-const healthHandler = (req: express.Request, res: express.Response) => {
+const healthHandler = async (req: express.Request, res: express.Response) => {
+  const dbStatus: any = { connected: false };
+  try {
+    const rawUrl = config.databaseUrl || process.env.DATABASE_URL || '';
+    let maskedHost = 'UNKNOWN';
+    let dbName = 'UNKNOWN';
+    let projectRef = null;
+
+    try {
+      const u = new URL(rawUrl.replace(/^['"]|['"]$/g, ''));
+      maskedHost = `${u.hostname}:${u.port || '5432'}`;
+      dbName = u.pathname.replace(/^\//, '');
+      if (u.username.includes('.')) {
+        projectRef = u.username.split('.')[1] || null;
+      }
+    } catch {}
+
+    // Verify database connectivity
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus.connected = true;
+    dbStatus.host = maskedHost;
+    dbStatus.database = dbName;
+    dbStatus.projectRef = projectRef;
+    dbStatus.isSupabase = maskedHost.includes('supabase.co') || maskedHost.includes('supabase.com');
+    dbStatus.isRender = maskedHost.includes('render.com');
+
+    // Query applied migrations from database
+    try {
+      const migrations: any[] = await prisma.$queryRawUnsafe(`
+        SELECT migration_name, finished_at 
+        FROM _prisma_migrations 
+        WHERE rolled_back_at IS NULL 
+        ORDER BY finished_at DESC;
+      `);
+      dbStatus.appliedMigrationsCount = migrations.length;
+      dbStatus.latestMigration = migrations[0]?.migration_name || null;
+      dbStatus.appliedMigrations = migrations.map((m: any) => m.migration_name);
+    } catch (migErr: any) {
+      dbStatus.migrationError = migErr.message;
+    }
+
+    // Query public tables to verify existing schema
+    try {
+      const tables: any[] = await prisma.$queryRawUnsafe(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name ASC;
+      `);
+      dbStatus.tablesCount = tables.length;
+      dbStatus.tables = tables.map((t: any) => t.table_name);
+    } catch (tabErr: any) {
+      dbStatus.tablesError = tabErr.message;
+    }
+  } catch (err: any) {
+    dbStatus.connected = false;
+    dbStatus.error = err?.message || 'DB query error';
+  }
+
   res.status(200).json({
     status: 'ok',
     version: '1.0.0',
     system: 'Tailor Management System V1 SaaS',
     environment: config.nodeEnv,
+    database: dbStatus,
     timestamp: new Date().toISOString()
   });
 };
