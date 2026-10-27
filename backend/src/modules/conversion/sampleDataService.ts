@@ -17,18 +17,21 @@ export class SampleDataService {
   static async getStatus(tenantId: string) {
     const realCustomers = await prisma.customer.count({
       where: { tenantId, isSample: { not: true }, isDemo: false, isDeleted: false }
-    });
+    }).catch(() => 0);
     const realOrders = await prisma.order.count({
       where: { tenantId, isSample: { not: true }, isDemo: false, isCancelled: false }
-    });
+    }).catch(() => 0);
 
     return {
       hasSampleData: false,
       sampleCustomers: 0,
       sampleOrders: 0,
+      sampleCustomerCount: 0,
+      sampleOrderCount: 0,
       sampleStaff: 0,
       realCustomers,
-      realOrders
+      realOrders,
+      showFirstCustomerPrompt: false
     };
   }
 

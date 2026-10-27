@@ -26,10 +26,13 @@ router.post('/funnel/track', (req, res, next) => {
 router.get('/config', ConversionController.getPublicConfig);
 
 // All following conversion routes require authenticated tenant context
-router.use(tenantContext, authGuard);
+router.use(authGuard, tenantContext);
 
-// Backend feature flag enforcement
+// Backend feature flag enforcement (status endpoints always pass to allow clean UI rendering)
 router.use((req, res, next) => {
+  if (req.path.includes('/status')) {
+    return next();
+  }
   if (!config.conversionV1) {
     return res.status(404).json({
       success: false,
@@ -44,6 +47,14 @@ router.use((req, res, next) => {
 
 // Upgrade Progress & Pricing
 router.get('/upgrade/progress', ConversionController.getUpgradeProgress);
+
+// Sample Data Status & Management
+router.get('/sample-data/status', ConversionController.getSampleDataStatus);
+router.post('/sample-data/clear', ConversionController.clearSampleData);
+router.post('/sample-prompt/dismiss', ConversionController.dismissSamplePrompt);
+
+// Aha Moment
+router.post('/aha/send-to-self', ConversionController.sendAhaToSelf);
 
 // Onboarding
 router.get('/onboarding/status', ConversionController.getOnboardingStatus);

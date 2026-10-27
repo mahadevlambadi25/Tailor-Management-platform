@@ -16,12 +16,13 @@ router.post('/google', rateLimiter(60000, 20), AuthController.googleTokenLogin);
 router.post('/register', rateLimiter(60000, 10), AuthController.staffRegister);
 router.post('/login', rateLimiter(60000, 15), AuthController.staffLogin);
 
-router.use(tenantContext);
+// Authenticated Profile & Credential Endpoints
+router.get('/me', authGuard, tenantContext, AuthController.getMe);
+router.post('/change-password', authGuard, tenantContext, UsersController.changeOwnPassword);
 
-router.get('/me', authGuard, AuthController.getMe);
-router.post('/change-password', authGuard, UsersController.changeOwnPassword);
-router.post('/customer/request-otp', rateLimiter(60000, 5), AuthController.requestCustomerOtp);
-router.post('/customer/verify-otp', rateLimiter(60000, 10), AuthController.verifyCustomerOtp);
+// Customer Portal OTP Endpoints
+router.post('/customer/request-otp', rateLimiter(60000, 5), tenantContext, AuthController.requestCustomerOtp);
+router.post('/customer/verify-otp', rateLimiter(60000, 10), tenantContext, AuthController.verifyCustomerOtp);
 
 export default router;
 

@@ -26,10 +26,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('tailor_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState<string | null>(localStorage.getItem('tailor_token'));
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!token ? false : true);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -39,13 +46,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       try {
         const res = await api.get('/auth/me');
-        if (res.data.success) {
-          setUser(res.data.data.user);
+        if (res.data?.success) {
+          const fetchedUser = res.data.data.user;
+          setUser(fetchedUser);
           setPermissions(res.data.data.permissions || []);
+          localStorage.setItem('tailor_user', JSON.stringify(fetchedUser));
+          if (fetchedUser.tenant?.slug) {
+            localStorage.setItem('tailor_tenant_slug', fetchedUser.tenant.slug);
+          }
         }
-      } catch (err) {
-        console.error('Session validation failed', err);
-        logout();
+      } catch (err: any) {
+        console.warn('Session verification notice:', err?.response?.status, err?.message);
+        // Only invalidate the session if the token is definitively rejected by authentication middleware
+        if (
+          err.response?.status === 401 ||
+          err.response?.data?.error?.code === 'TOKEN_INVALID' ||
+          err.response?.data?.error?.code === 'ACCOUNT_DEACTIVATED'
+        ) {
+          logout();
+        }
       } finally {
         setIsLoading(false);
       }

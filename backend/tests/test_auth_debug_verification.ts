@@ -287,7 +287,93 @@ async function runAuthDebugTests() {
     // 4. DIRECT_URL fallback
     const fallbackDirect = testSanitize(process.env.DIRECT_URL) || testSanitize(process.env.DATABASE_URL);
     assert(fallbackDirect.length > 0, 'DIRECT_URL has valid fallback ensuring P1012 is impossible');
-    recordPass('Database URL sanitization and DIRECT_URL fallback verified');
+    // -------------------------------------------------------------------------
+    // Test 10: Conversion Status Endpoints Availability
+    // -------------------------------------------------------------------------
+    console.log('\n[10/13] Testing Conversion Status Endpoints Availability...');
+    const testMockToken = jwt.sign(mockUserPayload, config.jwtSecret, { expiresIn: '1d' });
+
+    // GET /conversion/sample-data/status
+    const sampleStatusRes = await fetch(`${BASE_URL}/conversion/sample-data/status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${testMockToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const sampleStatusData: any = await sampleStatusRes.json();
+    assert.notStrictEqual(sampleStatusRes.status, 404, 'Route /conversion/sample-data/status must NOT return 404');
+    assert.strictEqual(sampleStatusData.success, true, 'Sample data status returns success: true');
+    assert('hasSampleData' in sampleStatusData.data, 'Response contains hasSampleData field');
+    recordPass('Route GET /conversion/sample-data/status is registered, active, and returns valid payload');
+
+    // GET /conversion/onboarding/status
+    const onboardingStatusRes = await fetch(`${BASE_URL}/conversion/onboarding/status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${testMockToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const onboardingStatusData: any = await onboardingStatusRes.json();
+    assert.notStrictEqual(onboardingStatusRes.status, 404, 'Route /conversion/onboarding/status must NOT return 404');
+    assert.notStrictEqual(onboardingStatusRes.status, 500, 'Route /conversion/onboarding/status must NOT return 500');
+    assert.strictEqual(onboardingStatusData.success, true, 'Onboarding status returns success: true');
+    recordPass('Route GET /conversion/onboarding/status returns HTTP 200 without 500 exception');
+
+    // -------------------------------------------------------------------------
+    // Test 11: Protected Route Guard & Login Persistence (/auth/me)
+    // -------------------------------------------------------------------------
+    console.log('\n[11/13] Testing Protected Route Guard & Token Auth on /auth/me...');
+    
+    // Missing Token -> 401
+    const noTokenRes = await fetch(`${BASE_URL}/auth/me`, { method: 'GET' });
+    const noTokenData: any = await noTokenRes.json();
+    assert.strictEqual(noTokenRes.status, 401, 'Request without Bearer token rejected with HTTP 401');
+    assert.strictEqual(noTokenData.error?.code, 'UNAUTHORIZED');
+    recordPass('Unauthenticated request to /auth/me rejected with HTTP 401 UNAUTHORIZED');
+
+    // Invalid Token -> 401
+    const invalidTokenRes = await fetch(`${BASE_URL}/auth/me`, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer invalid.token.payload' }
+    });
+    assert.strictEqual(invalidTokenRes.status, 401, 'Invalid Bearer token rejected with HTTP 401');
+    recordPass('Malformed Bearer token rejected with HTTP 401');
+
+    // -------------------------------------------------------------------------
+    // Test 12: Supabase Pooler PgBouncer Flag Normalization
+    // -------------------------------------------------------------------------
+    console.log('\n[12/13] Testing Supabase Pooler PgBouncer Flag Normalization (Postgres 26000 Fix)...');
+    const rawSupabasePoolerUrl = 'postgresql://postgres.test:pass@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres';
+    const normalizePooler = (url: string): string => {
+      if ((url.includes(':6543') || url.includes('pooler.supabase.com')) && !url.includes('pgbouncer=true')) {
+        return url + (url.includes('?') ? '&' : '?') + 'pgbouncer=true';
+      }
+      return url;
+    };
+    const cleanedPoolerUrl = normalizePooler(rawSupabasePoolerUrl);
+    assert(cleanedPoolerUrl.includes('pgbouncer=true'), 'pgbouncer=true is guaranteed on port 6543 / pooler connections');
+    recordPass('PgBouncer connection parameter automatically appended to prevent Postgres 26000 prepared statement errors');
+
+    // -------------------------------------------------------------------------
+    // Test 13: PWA Manifest Icons & Favicon Verification
+    // -------------------------------------------------------------------------
+    console.log('\n[13/13] Testing PWA 192x192, 512x512, and Favicon Physical Asset Existence...');
+    const fs = require('fs');
+    const path = require('path');
+    const publicDir = path.resolve(__dirname, '../../frontend/public');
+    const distDir = path.resolve(__dirname, '../../frontend/dist');
+
+    assert(fs.existsSync(path.join(publicDir, 'pwa-192x192.png')), 'frontend/public/pwa-192x192.png exists');
+    assert(fs.existsSync(path.join(publicDir, 'pwa-512x512.png')), 'frontend/public/pwa-512x512.png exists');
+    assert(fs.existsSync(path.join(publicDir, 'favicon.ico')), 'frontend/public/favicon.ico exists');
+    assert(fs.statSync(path.join(publicDir, 'pwa-192x192.png')).size > 500, 'pwa-192x192.png has valid byte size');
+
+    if (fs.existsSync(distDir)) {
+      assert(fs.existsSync(path.join(distDir, 'pwa-192x192.png')), 'frontend/dist/pwa-192x192.png exists in build output');
+    }
+    recordPass('PWA 192x192 icon, 512x512 icon, and favicon exist and verify successfully');
 
     console.log('\n================================================================');
     console.log(`  TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

@@ -62,7 +62,7 @@ const TenantContext = createContext<TenantContextType>({} as TenantContextType);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tenantSlug, setTenantSlugState] = useState<string>(
-    localStorage.getItem('tailor_tenant_slug') || 'royal-bespoke'
+    localStorage.getItem('tailor_tenant_slug') || ''
   );
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);

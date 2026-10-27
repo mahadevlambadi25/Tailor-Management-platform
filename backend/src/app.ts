@@ -50,12 +50,12 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // In production, match normalized origin against allowed origins list, wildcard, or Render subdomain fallback
+    // In production, match normalized origin against allowed origins list, wildcard, or any onrender.com origin
     const normalizedOrigin = origin.replace(/\/+$/, '');
     const isAllowed =
       allowedOrigins.includes(normalizedOrigin) ||
       allowedOrigins.includes('*') ||
-      (normalizedOrigin.endsWith('.onrender.com') && (!process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === 'http://localhost:5173'));
+      normalizedOrigin.endsWith('.onrender.com');
 
     if (isAllowed) {
       return callback(null, true);

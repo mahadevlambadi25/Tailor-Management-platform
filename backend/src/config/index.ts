@@ -15,6 +15,10 @@ function sanitizeDatabaseUrl(url?: string): string {
   if (cleaned.startsWith('postgres://')) {
     cleaned = 'postgresql://' + cleaned.slice('postgres://'.length);
   }
+  // Supabase PgBouncer (Port 6543) or connection poolers require pgbouncer=true so Prisma avoids prepared statements
+  if ((cleaned.includes(':6543') || cleaned.includes('pooler.supabase.com')) && !cleaned.includes('pgbouncer=true')) {
+    cleaned += (cleaned.includes('?') ? '&' : '?') + 'pgbouncer=true';
+  }
   return cleaned;
 }
 
@@ -47,7 +51,7 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   conversionV1: process.env.CONVERSION_V1 !== undefined
     ? process.env.CONVERSION_V1 === 'true'
-    : (process.env.NODE_ENV !== 'production'),
+    : true,
   whatsappNumber: process.env.WHATSAPP_NUMBER || '919999999999',
   demoVideoUrlEn: process.env.DEMO_VIDEO_URL_EN || '',
   demoVideoUrlHi: process.env.DEMO_VIDEO_URL_HI || '',

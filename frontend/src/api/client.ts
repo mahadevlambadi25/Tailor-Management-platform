@@ -10,6 +10,13 @@ const resolveApiBaseUrl = (): string => {
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
     if (!isLocalhost) {
+      // Known production host mappings
+      if (hostname === 'tailor-management-platform.onrender.com') {
+        if (!envUrl || !envUrl.trim() || envUrl.includes('localhost') || envUrl.includes('127.0.0.1') || envUrl === '/api/v1') {
+          return 'https://tailor-management-backend-d5k0.onrender.com/api/v1';
+        }
+      }
+
       // If VITE_API_URL was baked in pointing to localhost or is missing:
       if (!envUrl || !envUrl.trim() || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
         // If hosted on Render (*.onrender.com), dynamically derive the backend service
@@ -43,7 +50,7 @@ export const api = axios.create({
 
 api.interceptors.request.use((req) => {
   const token = localStorage.getItem('tailor_token');
-  const storedSlug = localStorage.getItem('tailor_tenant_slug') || 'royal-bespoke';
+  const storedSlug = localStorage.getItem('tailor_tenant_slug');
 
   if (token) {
     req.headers.Authorization = `Bearer ${token}`;
@@ -62,14 +69,14 @@ api.interceptors.request.use((req) => {
       }
     }
   } else {
-    // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage
+    // Preserve explicitly provided x-tenant-slug header, otherwise use localStorage if set
     if (req.headers['x-tenant-slug'] === '') {
       if (typeof req.headers.delete === 'function') {
         req.headers.delete('x-tenant-slug');
       } else {
         delete req.headers['x-tenant-slug'];
       }
-    } else if (!req.headers['x-tenant-slug']) {
+    } else if (!req.headers['x-tenant-slug'] && storedSlug) {
       req.headers['x-tenant-slug'] = storedSlug;
     }
   }

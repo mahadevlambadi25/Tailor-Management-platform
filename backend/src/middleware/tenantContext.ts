@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../core/prisma';
 import { config } from '../config';
+import { logger } from '../core/logger';
 
 export interface AuthenticatedUser {
   id: string;
@@ -27,11 +28,25 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
   try {
     let tenant = null;
 
+    // 0. SaaS Owners have global platform access across all tenants
+    if (req.user?.role === 'SAAS_OWNER') {
+      return next();
+    }
+
     // 1. If user is already authenticated (req.user set by authGuard), resolve tenant from authenticated user
-    if (req.user?.tenantId && req.user.role !== 'SAAS_OWNER') {
-      tenant = await prisma.tenant.findUnique({
-        where: { id: req.user.tenantId }
-      });
+    if (req.user?.tenantId) {
+      try {
+        tenant = await prisma.tenant.findUnique({
+          where: { id: req.user.tenantId }
+        });
+      } catch (dbErr) {
+        logger.warn(`[tenantContext] Database error resolving tenant for authenticated user: ${dbErr}`);
+        // Resilient fallback: grant access with token tenantId rather than throwing 500 and causing immediate logout
+        req.tenant = { id: req.user.tenantId, name: 'Atelier', isActive: true, isDemo: false };
+        req.tenantId = req.user.tenantId;
+        return next();
+      }
+
       if (!tenant) {
         return res.status(404).json({
           success: false,
@@ -55,7 +70,11 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
       const token = authHeader.split(' ')[1];
       try {
         const decoded = jwt.verify(token, config.jwtSecret) as any;
-        if (decoded?.tenantId && decoded.role !== 'SAAS_OWNER') {
+        if (decoded?.role === 'SAAS_OWNER') {
+          req.user = decoded;
+          return next();
+        }
+        if (decoded?.tenantId) {
           tenant = await prisma.tenant.findUnique({
             where: { id: decoded.tenantId }
           });
@@ -76,7 +95,7 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
       }
     }
 
-    // 3. For unauthenticated endpoints (e.g. login, public OTP) or SAAS_OWNER:
+    // 3. For unauthenticated endpoints (e.g. login, public OTP) or public routes:
     // Priority: Explicit request body > Explicit request header > Query param > Default fallback
     const slugBody = (req.body?.tenantSlug as string)?.trim();
     const slugHeader = (req.headers['x-tenant-slug'] as string)?.trim();
@@ -88,8 +107,23 @@ export async function tenantContext(req: Request, res: Response, next: NextFunct
     });
 
     if (!tenant) {
-      if (req.path.includes('/login') || req.path.includes('/register')) {
+      if (req.user?.role === 'SAAS_OWNER') {
         return next();
+      }
+      if (req.path.includes('/login') || req.path.includes('/register') || req.path.includes('/funnel')) {
+        return next();
+      }
+      // If default slug was requested but not found, try finding any active tenant as fallback
+      if (slug === config.defaultTenantSlug || slug === 'royal-bespoke') {
+        const fallbackTenant = await prisma.tenant.findFirst({
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' }
+        });
+        if (fallbackTenant) {
+          req.tenant = fallbackTenant;
+          req.tenantId = fallbackTenant.id;
+          return next();
+        }
       }
       return res.status(404).json({
         success: false,

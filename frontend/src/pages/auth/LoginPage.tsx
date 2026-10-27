@@ -218,9 +218,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
       }
 
       if (res.data.success) {
-        const resolvedSlug = res.data.data.user.tenant?.slug || activeSlug || 'royal-bespoke';
-        localStorage.setItem('tailor_tenant_slug', resolvedSlug);
-        setTenantSlug(resolvedSlug);
+        const resolvedSlug = res.data.data.user.tenant?.slug || activeSlug || '';
+        if (resolvedSlug) {
+          localStorage.setItem('tailor_tenant_slug', resolvedSlug);
+          setTenantSlug(resolvedSlug);
+        }
         login(res.data.data.token, res.data.data.user, res.data.data.permissions);
         navigate('/dashboard');
       }
