@@ -2,6 +2,27 @@ import axios from 'axios';
 
 const resolveApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
+
+  // Browser-side runtime protection:
+  // If running in production (not on localhost), ensure we do NOT erroneously target localhost
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    if (!isLocalhost) {
+      // If VITE_API_URL was baked in pointing to localhost or is missing:
+      if (!envUrl || !envUrl.trim() || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+        // If hosted on Render (*.onrender.com), dynamically derive the backend service
+        if (hostname.endsWith('.onrender.com')) {
+          const backendHostname = hostname.replace('-frontend', '-backend');
+          if (backendHostname !== hostname) {
+            return `https://${backendHostname}/api/v1`;
+          }
+        }
+      }
+    }
+  }
+
   if (!envUrl || !envUrl.trim()) {
     return '/api/v1';
   }

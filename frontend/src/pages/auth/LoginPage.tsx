@@ -97,10 +97,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
   const getDisplayError = (raw: string): string => {
     if (!raw) return '';
     if (raw.includes('ECONNREFUSED') || raw.includes('Failed to fetch') || raw.includes('Network Error')) {
-      return 'Unable to reach the server. Please verify your internet connection or try again shortly.';
+      return 'Unable to reach the backend service. The server may be waking up or deploying. Please try again shortly.';
     }
     if (raw.includes('SQL') || raw.includes('prisma') || raw.includes('syntax error')) {
-      return 'An unexpected service error occurred. Please try again shortly or contact support.';
+      return 'A service error occurred while processing your request. Please try again shortly or contact support.';
     }
     return raw;
   };
@@ -372,6 +372,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ initialMode }) => {
         } else if (code === 'PASSWORD_MISMATCH') {
           setFieldErrors({ confirmPassword: msg });
         }
+      } else if (!err.response || err.response.status === 502 || err.response.status === 503 || err.response.status === 504) {
+        setError('Backend service is currently unreachable or starting up. Please verify the backend service status or try again shortly.');
       } else {
         setError(err.message || 'Registration failed. Please check your information and try again.');
       }

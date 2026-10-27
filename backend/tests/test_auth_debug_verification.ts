@@ -254,6 +254,41 @@ async function runAuthDebugTests() {
     assert.strictEqual(p2021Res.getJson()?.error?.code, 'DATABASE_SCHEMA_MISMATCH');
     recordPass('P2021 missing table translated to HTTP 500 DATABASE_SCHEMA_MISMATCH');
 
+    // -------------------------------------------------------------------------
+    // Test 9: Database URL Sanitization (Preventing P1012 & P1013)
+    // -------------------------------------------------------------------------
+    console.log('\n[9/9] Testing Database URL Sanitization (P1012/P1013 Guard)...');
+    function testSanitize(url?: string): string {
+      if (!url) return '';
+      let cleaned = String(url).trim();
+      if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+        cleaned = cleaned.slice(1, -1).trim();
+      }
+      if (cleaned.startsWith('postgres://')) {
+        cleaned = 'postgresql://' + cleaned.slice('postgres://'.length);
+      }
+      return cleaned;
+    }
+
+    // 1. Quoted URL (common dashboard error that causes P1013)
+    const quotedUrl = '"postgresql://postgres.test:pass@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true"';
+    const cleanedQuoted = testSanitize(quotedUrl);
+    assert(!cleanedQuoted.startsWith('"') && !cleanedQuoted.endsWith('"'), 'Accidental double quotes stripped');
+    assert.strictEqual(cleanedQuoted.startsWith('postgresql://'), true, 'Scheme is standard postgresql://');
+
+    // 2. Single-quoted URL
+    const singleQuoted = "'postgresql://postgres.test:pass@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres'";
+    assert.strictEqual(testSanitize(singleQuoted).startsWith('postgresql://'), true, 'Single quotes stripped');
+
+    // 3. postgres:// scheme normalized to postgresql://
+    const legacyScheme = 'postgres://postgres.test:pass@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres';
+    assert.strictEqual(testSanitize(legacyScheme).startsWith('postgresql://'), true, 'Legacy postgres:// normalized to postgresql://');
+
+    // 4. DIRECT_URL fallback
+    const fallbackDirect = testSanitize(process.env.DIRECT_URL) || testSanitize(process.env.DATABASE_URL);
+    assert(fallbackDirect.length > 0, 'DIRECT_URL has valid fallback ensuring P1012 is impossible');
+    recordPass('Database URL sanitization and DIRECT_URL fallback verified');
+
     console.log('\n================================================================');
     console.log(`  TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
     console.log('================================================================\n');

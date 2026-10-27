@@ -1,6 +1,27 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+function sanitizeDatabaseUrl(url?: string): string {
+  if (!url) return '';
+  let cleaned = url.trim();
+  // Strip accidental outer quotes if entered in Render dashboard
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  // Normalize postgres:// to postgresql://
+  if (cleaned.startsWith('postgres://')) {
+    cleaned = 'postgresql://' + cleaned.slice('postgres://'.length);
+  }
+  return cleaned;
+}
+
+// Sanitize database URLs in environment
+process.env.DATABASE_URL = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+process.env.DIRECT_URL = sanitizeDatabaseUrl(process.env.DIRECT_URL) || process.env.DATABASE_URL;
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
