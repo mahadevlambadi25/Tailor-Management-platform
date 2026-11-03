@@ -25,7 +25,7 @@ async function bootstrap() {
     const server = app.listen(Number(port), '0.0.0.0', () => {
       console.log(`Server listening on port ${port}`);
       logger.info(`Tailor Management System Backend running on 0.0.0.0:${port} [NODE_ENV=${config.nodeEnv}]`);
-      logger.info(`Health check available at /health and /api/v1/health`);
+      logger.info(`Liveness probe available at /health; Readiness probe available at /ready`);
     });
 
     // Configure connection timeouts for high-concurrency reverse proxy stability (Nginx/ALB/Render)

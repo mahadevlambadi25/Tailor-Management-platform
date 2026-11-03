@@ -1,0 +1,121 @@
+name: Production AWS ECS Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'infra/**'
+      - '.github/workflows/deploy-aws.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: tailor-management-backend
+  ECS_CLUSTER: tailor-management-production-cluster
+  ECS_SERVICE: tailor-management-production-service
+  ECS_TASK_DEFINITION_NAME: tailor-management-production-web
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma Client & Compile TypeScript
+        working-directory: backend
+        run: npm run build
+
+      - name: Run Migration Guard & Unit Tests
+        working-directory: backend
+        run: |
+          npx ts-node tests/test_deploy_migrations_guard.ts
+          npx ts-node tests/test_health_and_readiness.ts
+          npx ts-node tests/test_eventbridge_scheduler_standalone.ts
+          npx ts-node tests/test_phase_b2_outbox_integration.ts
+
+  deploy:
+    name: Build Docker Image & Deploy to ECS
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag & Push Docker Image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: backend
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Apply Database Migrations (Pre-Flight Protected)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        working-directory: backend
+        run: |
+          npm ci
+          node scripts/deploy-migrations.js
+
+      - name: Download Active ECS Task Definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_TASK_DEFINITION_NAME }} \
+            --query taskDefinition > task-definition.json
+
+      - name: Render New Image in Task Definition
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: backend-api
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Task Definition to ECS Service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

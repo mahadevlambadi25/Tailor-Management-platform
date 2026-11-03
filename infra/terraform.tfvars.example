@@ -1,0 +1,24 @@
+# ==============================================================================
+# OpenTofu Variable Configuration Example (Production - ap-south-1)
+# ==============================================================================
+
+aws_region  = "ap-south-1"
+environment = "production"
+project_name = "tailor-management"
+
+# Networking
+vpc_cidr                 = "10.0.0.0/16"
+availability_zones       = ["ap-south-1a", "ap-south-1b"]
+public_subnet_cidrs      = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs     = ["10.0.10.0/24", "10.0.20.0/24"]
+enable_nat_gateway_per_az = false # Set true for high redundancy; false for single NAT to save cost
+
+# Fargate Compute Sizing
+fargate_cpu    = 512   # 0.5 vCPU
+fargate_memory = 1024  # 1024 MB RAM
+desired_count  = 2     # 2 Web tasks running across AZs
+min_capacity   = 1
+max_capacity   = 4
+
+# HTTPS Configuration (Optional: provide ACM ARN once issued)
+# acm_certificate_arn = "arn:aws:acm:ap-south-1:123456789012:certificate/your-cert-uuid"

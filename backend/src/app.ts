@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import path from 'path';
 import { config } from './config';
 import { prisma } from './core/prisma';
+import { logger } from './core/logger';
 import { errorHandler } from './middleware/errorHandler';
 
 // Route Imports
@@ -80,79 +81,49 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static local storage provider route
 app.use('/api/v1/storage', express.static(path.resolve(config.storageLocalDir)));
 
-// System Health Checks (supporting Render root/health probes as well as API path)
-const healthHandler = async (req: express.Request, res: express.Response) => {
-  const dbStatus: any = { connected: false };
-  try {
-    const rawUrl = config.databaseUrl || process.env.DATABASE_URL || '';
-    let maskedHost = 'UNKNOWN';
-    let dbName = 'UNKNOWN';
-    let projectRef = null;
-
-    try {
-      const u = new URL(rawUrl.replace(/^['"]|['"]$/g, ''));
-      maskedHost = `${u.hostname}:${u.port || '5432'}`;
-      dbName = u.pathname.replace(/^\//, '');
-      if (u.username.includes('.')) {
-        projectRef = u.username.split('.')[1] || null;
-      }
-    } catch {}
-
-    // Verify database connectivity
-    await prisma.$queryRaw`SELECT 1`;
-    dbStatus.connected = true;
-    dbStatus.host = maskedHost;
-    dbStatus.database = dbName;
-    dbStatus.projectRef = projectRef;
-    dbStatus.isSupabase = maskedHost.includes('supabase.co') || maskedHost.includes('supabase.com');
-    dbStatus.isRender = maskedHost.includes('render.com');
-
-    // Query applied migrations from database
-    try {
-      const migrations: any[] = await prisma.$queryRawUnsafe(`
-        SELECT migration_name, finished_at 
-        FROM _prisma_migrations 
-        WHERE rolled_back_at IS NULL 
-        ORDER BY finished_at DESC;
-      `);
-      dbStatus.appliedMigrationsCount = migrations.length;
-      dbStatus.latestMigration = migrations[0]?.migration_name || null;
-      dbStatus.appliedMigrations = migrations.map((m: any) => m.migration_name);
-    } catch (migErr: any) {
-      dbStatus.migrationError = migErr.message;
-    }
-
-    // Query public tables to verify existing schema
-    try {
-      const tables: any[] = await prisma.$queryRawUnsafe(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-        ORDER BY table_name ASC;
-      `);
-      dbStatus.tablesCount = tables.length;
-      dbStatus.tables = tables.map((t: any) => t.table_name);
-    } catch (tabErr: any) {
-      dbStatus.tablesError = tabErr.message;
-    }
-  } catch (err: any) {
-    dbStatus.connected = false;
-    dbStatus.error = err?.message || 'DB query error';
-  }
-
+// System Liveness Check (/health, /api/v1/health, /)
+// Strictly checks process liveness without touching database or external dependencies
+const livenessHandler = (_req: express.Request, res: express.Response) => {
   res.status(200).json({
     status: 'ok',
     version: '1.0.0',
     system: 'Tailor Management System V1 SaaS',
     environment: config.nodeEnv,
-    database: dbStatus,
     timestamp: new Date().toISOString()
   });
 };
 
-app.get('/health', healthHandler);
-app.get('/api/v1/health', healthHandler);
-app.get('/', healthHandler);
+// System Readiness Check (/ready, /api/v1/ready)
+// Verifies database responsiveness using a lightweight probe query
+const readinessHandler = async (_req: express.Request, res: express.Response) => {
+  try {
+    // Lightweight database ping
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      status: 'ready',
+      version: '1.0.0',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    logger.warn(`[Readiness Probe] Database check failed: ${err?.message || err}`);
+    // Fail-safe 503 response: never exposes credentials, connection strings, or sensitive DB errors
+    res.status(503).json({
+      status: 'unavailable',
+      version: '1.0.0',
+      database: 'disconnected',
+      error: 'Database connectivity check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+app.get('/health', livenessHandler);
+app.get('/api/v1/health', livenessHandler);
+app.get('/', livenessHandler);
+
+app.get('/ready', readinessHandler);
+app.get('/api/v1/ready', readinessHandler);
 
 // Mount /api/v1/ Domain Routes
 app.use('/api/v1/auth', authRoutes);

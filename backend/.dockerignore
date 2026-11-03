@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Environment & Credentials (NEVER bake secrets into image)
+.env
+.env.*
+!.env.example
+
+# Local dependencies & caches
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Build outputs
+dist
+build
+
+# Test suites & fixtures
+tests
+coverage
+*.test.ts
+*.spec.ts
+
+# Documentation & IDE
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Ephemeral uploads & temp files
+uploads/*
+!uploads/.gitkeep
+tmp
+temp

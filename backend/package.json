@@ -15,7 +15,8 @@
     "db:push": "prisma db push",
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed": "ts-node prisma/seed.ts",
-    "test": "ts-node tests/master_test.ts"
+    "test": "ts-node tests/master_test.ts",
+    "nudge:run": "node scripts/run-nudge-worker.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

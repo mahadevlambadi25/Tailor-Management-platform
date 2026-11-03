@@ -8,7 +8,15 @@ export class CustomersController {
   static async list(req: Request, res: Response, next: NextFunction) {
     try {
       const { search, page = '1', limit = '20', includeDeleted } = req.query;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
+
       const take = parseInt(limit as string, 10);
       const skip = (parseInt(page as string, 10) - 1) * take;
 
@@ -100,7 +108,14 @@ export class CustomersController {
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
 
       const customer = await prisma.customer.findFirst({
         where: { id, tenantId },
@@ -187,7 +202,14 @@ export class CustomersController {
         notes,
         preferences
       } = req.body;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
 
       // 1. Mandatory Fields Validation
       if (!firstName || !firstName.toString().trim() || !lastName || !lastName.toString().trim() || !mobile || !mobile.toString().trim()) {
@@ -342,9 +364,16 @@ export class CustomersController {
     try {
       const { id } = req.params;
       const { firstName, lastName, mobile, email, gender, dob, address, city, state, pincode, notes } = req.body;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
 
-      // 1. Verify customer exists within current tenant
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
+
+      // 1. Verify customer exists within current tenant (prevent cross-tenant IDOR updates)
       const existing = await prisma.customer.findFirst({
         where: { id, tenantId }
       });
@@ -387,7 +416,7 @@ export class CustomersController {
             where: {
               tenantId,
               isDeleted: false,
-              NOT: { id },
+              NOT: { id: existing.id },
               OR: [{ mobile: cleanMobile }, { mobile: digits }]
             }
           });
@@ -427,23 +456,27 @@ export class CustomersController {
       if (pincode !== undefined) updateData.pincode = pincode ? pincode.toString().trim() : null;
       if (notes !== undefined) updateData.notes = notes ? notes.toString().trim() : null;
 
-      const customer = await prisma.customer.update({
-        where: { id },
-        data: updateData,
-        include: { preferences: true }
-      });
+      // Atomic Customer Update and Audit Log via Prisma Transaction
+      const customer = await prisma.$transaction(async (tx) => {
+        const updated = await tx.customer.update({
+          where: { id: existing.id },
+          data: updateData,
+          include: { preferences: true }
+        });
 
-      // Audit Log
-      await prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId: req.user?.id,
-          customerId: customer.id,
-          action: 'CUSTOMER_UPDATED',
-          entity: 'Customer',
-          entityId: customer.id,
-          details: { name: `${customer.firstName} ${customer.lastName}`, mobile: customer.mobile }
-        }
+        await tx.auditLog.create({
+          data: {
+            tenantId: existing.tenantId,
+            userId: req.user?.id,
+            customerId: updated.id,
+            action: 'CUSTOMER_UPDATED',
+            entity: 'Customer',
+            entityId: updated.id,
+            details: { name: `${updated.firstName} ${updated.lastName}`, mobile: updated.mobile }
+          }
+        });
+
+        return updated;
       });
 
       return res.json({ success: true, data: customer });
@@ -455,7 +488,14 @@ export class CustomersController {
     try {
       const { id } = req.params;
       const { deletionReason } = req.body;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
 
       const existing = await prisma.customer.findFirst({
         where: { id, tenantId }
@@ -467,26 +507,31 @@ export class CustomersController {
         });
       }
 
-      const customer = await prisma.customer.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          deletedAt: new Date(),
-          deletedBy: req.user?.id || 'Unknown',
-          deletionReason: deletionReason || 'Requested by staff'
-        }
-      });
+      // Atomic Soft Delete and Audit Log via Prisma Transaction
+      const customer = await prisma.$transaction(async (tx) => {
+        const deleted = await tx.customer.update({
+          where: { id: existing.id },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: req.user?.id || 'Unknown',
+            deletionReason: deletionReason || 'Requested by staff'
+          }
+        });
 
-      await prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId: req.user?.id,
-          customerId: customer.id,
-          action: 'CUSTOMER_DELETED',
-          entity: 'Customer',
-          entityId: customer.id,
-          details: { deletionReason }
-        }
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+            userId: req.user?.id,
+            customerId: deleted.id,
+            action: 'CUSTOMER_DELETED',
+            entity: 'Customer',
+            entityId: deleted.id,
+            details: { deletionReason }
+          }
+        });
+
+        return deleted;
       });
 
       return res.json({ success: true, message: 'Customer soft-deleted successfully', data: customer });
@@ -497,7 +542,14 @@ export class CustomersController {
   static async restore(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
 
       const existing = await prisma.customer.findFirst({
         where: { id, tenantId }
@@ -510,7 +562,7 @@ export class CustomersController {
       }
 
       const customer = await prisma.customer.update({
-        where: { id },
+        where: { id: existing.id },
         data: {
           isDeleted: false,
           deletedAt: null,
@@ -528,7 +580,14 @@ export class CustomersController {
     try {
       const { id } = req.params;
       const { preferredContactMethod, fabricPreferences, fitPreference, notes } = req.body;
-      const tenantId = req.tenantId!;
+      const tenantId = req.tenantId;
+
+      if (!tenantId) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required. Missing tenant context.', code: 'UNAUTHORIZED' }
+        });
+      }
 
       // Strictly verify customer exists and belongs to this tenant!
       const customer = await prisma.customer.findFirst({
@@ -542,7 +601,7 @@ export class CustomersController {
       }
 
       const pref = await prisma.customerPreference.upsert({
-        where: { customerId: id },
+        where: { customerId: customer.id },
         update: {
           preferredContactMethod: preferredContactMethod || undefined,
           fabricPreferences: fabricPreferences !== undefined ? fabricPreferences : undefined,
@@ -550,8 +609,8 @@ export class CustomersController {
           notes: notes !== undefined ? notes : undefined
         },
         create: {
-          customerId: id,
-          tenantId,
+          customerId: customer.id,
+          tenantId: customer.tenantId,
           preferredContactMethod: preferredContactMethod || 'PHONE',
           fabricPreferences: fabricPreferences || null,
           fitPreference: fitPreference || null,

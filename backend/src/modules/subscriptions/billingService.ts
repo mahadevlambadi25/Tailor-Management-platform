@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { SubscriptionService, SUBSCRIPTION_PLANS } from './subscriptionService';
 import { RazorpayService } from './razorpayService';
+import { NudgeService } from '../conversion/nudgeService';
 
 export class BillingService {
   /**
@@ -370,6 +371,13 @@ export class BillingService {
             details: { eventId, paymentId, orderId, failureReason }
           }
         }).catch(() => {});
+
+        // Trigger automated payment recovery with canonical orderId incident
+        if (orderId) {
+          NudgeService.sendPaymentRecovery(tenantId, '1h', orderId).catch((recoveryErr: any) => {
+            logger.error(`[BillingService] Failed to trigger payment recovery for tenant ${tenantId} (${orderId}): ${recoveryErr?.message}`, recoveryErr);
+          });
+        }
       }
 
       return {

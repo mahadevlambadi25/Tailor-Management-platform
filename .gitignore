@@ -42,3 +42,6 @@ Thumbs.db
 # Tests / Coverage
 coverage/
 .nyc_output/
+
+# Local Scratch / Disposable Verification Scripts
+backend/scripts/run-disposable-verification.js

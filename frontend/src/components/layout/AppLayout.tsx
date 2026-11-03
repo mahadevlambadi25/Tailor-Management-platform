@@ -53,7 +53,7 @@ export const AppLayout: React.FC = () => {
         // Automatically start tour on fresh shop entry
         setTourOpen(true);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Listen for custom event to replay tour from Help/Navbar
     const handleReplayTour = () => setTourOpen(true);
@@ -90,9 +90,8 @@ export const AppLayout: React.FC = () => {
       />
 
       {(!isOnline || syncMessage) && (
-        <div className={`flex items-center justify-center gap-2 py-1.5 px-3 text-[11px] sm:text-xs font-medium ${
-          isOnline ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
-        }`}>
+        <div className={`flex items-center justify-center gap-2 py-1.5 px-3 text-[11px] sm:text-xs font-medium ${isOnline ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+          }`}>
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{syncMessage || 'Working in Offline Mode. Cached records available.'}</span>
         </div>

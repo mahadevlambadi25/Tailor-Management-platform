@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ConversionController } from './conversionController';
+import { WebhookController } from './webhookController';
 import { tenantContext } from '../../middleware/tenantContext';
 import { authGuard } from '../../middleware/authGuard';
 import { requireRoles } from '../../middleware/rbacGuard';
@@ -24,6 +25,10 @@ router.post('/funnel/track', (req, res, next) => {
 
 // Public configuration (pricing)
 router.get('/config', ConversionController.getPublicConfig);
+
+// Meta WhatsApp Webhook endpoints (challenge verification + status updates)
+router.get('/webhooks/whatsapp', WebhookController.handleVerification);
+router.post('/webhooks/whatsapp', WebhookController.handleWebhook);
 
 // All following conversion routes require authenticated tenant context
 router.use(authGuard, tenantContext);

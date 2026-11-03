@@ -8,6 +8,9 @@ export interface SendMessageOptions {
   vars: Record<string, any>;
   tenantId: string;
   channel?: NotificationChannel;
+  idempotencyKey?: string;
+  nudgeLogId?: string;
+  status?: string;
 }
 
 export const MESSAGE_TEMPLATES: Record<string, string> = {
@@ -40,8 +43,12 @@ export class MessageSender {
   /**
    * Stubs sending a message by recording in OutboxMessage table.
    * GUARANTEE: Never sends actual SMS or WhatsApp messages externally from the stub.
+   * Supports atomic database transaction execution via optional `client` parameter.
    */
-  static async send(options: SendMessageOptions): Promise<{ id: string; rendered: string; waLink: string }> {
+  static async send(
+    options: SendMessageOptions,
+    client: any = prisma
+  ): Promise<{ id: string; rendered: string; waLink: string }> {
     const { to, templateKey, vars, tenantId, channel = NotificationChannel.WHATSAPP } = options;
     const rendered = this.render(templateKey, vars);
 
@@ -50,7 +57,8 @@ export class MessageSender {
 
     logger.info(`[MessageSender STUB] Message created for ${to} [${templateKey}]: ${rendered}`);
 
-    const outboxRecord = await prisma.outboxMessage.create({
+    const dbClient = client || prisma;
+    const outboxRecord = await dbClient.outboxMessage.create({
       data: {
         tenantId,
         channel,
@@ -58,7 +66,9 @@ export class MessageSender {
         templateKey,
         vars: vars as any,
         renderedContent: rendered,
-        status: 'STUBBED'
+        status: options.status || 'STUBBED',
+        idempotencyKey: options.idempotencyKey || null,
+        nudgeLogId: options.nudgeLogId || null
       }
     });
 

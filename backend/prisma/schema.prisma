@@ -115,7 +115,7 @@ model SubscriptionPayment {
   failureReason  String?
   metadata       Json?
   createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  updatedAt      DateTime                  @default(now()) @updatedAt
 
   tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subscription   Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -148,7 +148,7 @@ model SubscriptionInvoice {
   billingAddress     String?
   pdfUrl             String?
   createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  updatedAt          DateTime                  @default(now()) @updatedAt
 
   tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subscription       Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -390,6 +390,7 @@ model CustomerMeasurement {
   tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   versions      MeasurementVersion[]
 
+  @@unique([tenantId, customerId, garmentTypeId], map: "customer_measurements_tenant_customer_garment_key")
   @@index([tenantId, customerId])
   @@map("customer_measurements")
 }
@@ -978,31 +979,68 @@ model FunnelEvent {
 }
 
 model OutboxMessage {
-  id              String              @id @default(uuid())
-  tenantId        String
-  channel         NotificationChannel @default(WHATSAPP)
-  to              String
-  templateKey     String
-  vars            Json?
-  renderedContent String
-  status          String              @default("STUBBED")
-  createdAt       DateTime            @default(now())
+  id                String              @id @default(uuid())
+  tenantId          String
+  channel           NotificationChannel @default(WHATSAPP)
+  to                String
+  templateKey       String
+  vars              Json?
+  renderedContent   String
+  status            String              @default("PENDING")
+  idempotencyKey    String?             @unique(map: "outbox_messages_idempotencyKey_key")
+  retryCount        Int                 @default(0)
+  maxRetries        Int                 @default(3)
+  nextRetryAt       DateTime?           @default(now())
+  lockedAt          DateTime?
+  lockedBy          String?
+  leaseToken        String?
+  providerMessageId String?             @unique(map: "outbox_messages_providerMessageId_key")
+  lastError         String?
+  deliveredAt       DateTime?
+  nudgeLogId        String?
+  nudgeLog          NudgeLog?           @relation(fields: [nudgeLogId], references: [id], onDelete: SetNull)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now()) @updatedAt
 
-  @@index([tenantId])
-  @@index([channel])
+  @@index([tenantId], map: "outbox_messages_tenantId_idx")
+  @@index([channel], map: "outbox_messages_channel_idx")
+  @@index([status, nextRetryAt], map: "outbox_messages_status_nextRetryAt_idx")
+  @@index([lockedAt], map: "outbox_messages_lockedAt_idx")
+  @@index([leaseToken], map: "outbox_messages_leaseToken_idx")
+  @@index([nudgeLogId], map: "outbox_messages_nudgeLogId_idx")
   @@map("outbox_messages")
 }
 
 model NudgeLog {
-  id        String   @id @default(uuid())
-  shopId    String
-  key       String
-  channel   String   @default("WHATSAPP")
-  sentAt    DateTime @default(now())
-  status    String   @default("SENT")
+  id              String          @id @default(uuid())
+  shopId          String
+  key             String
+  channel         String          @default("WHATSAPP")
+  sentAt          DateTime        @default(now())
+  status          String          @default("QUEUED")
+  idempotencyKey  String?         @unique(map: "nudge_logs_idempotencyKey_key")
+  deliveredAt     DateTime?
+  error           String?
+  updatedAt       DateTime        @default(now()) @updatedAt
+  outboxMessages  OutboxMessage[]
 
-  @@unique([shopId, key])
-  @@index([shopId])
+  @@unique([shopId, key], map: "nudge_logs_shopId_key_key")
+  @@index([shopId], map: "nudge_logs_shopId_idx")
+  @@index([sentAt], map: "nudge_logs_sentAt_idx")
   @@map("nudge_logs")
+}
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventId     String
+  eventType   String
+  payload     Json
+  status      String   @default("PROCESSED")
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId], map: "webhook_events_provider_eventId_key")
+  @@index([provider, eventType], map: "webhook_events_provider_eventType_idx")
+  @@map("webhook_events")
 }
 
