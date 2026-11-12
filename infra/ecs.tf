@@ -15,6 +15,24 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
+locals {
+  cloudfront_frontend_url = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  custom_frontend_url     = var.frontend_custom_domain != "" ? "https://${var.frontend_custom_domain}" : ""
+
+  # Browser-facing URL used for OAuth redirects (custom domain once configured, else CloudFront)
+  primary_frontend_url = local.custom_frontend_url != "" ? local.custom_frontend_url : local.cloudfront_frontend_url
+
+  # Browsers send Origin even on same-origin POSTs through the CloudFront /api/* proxy,
+  # so the CloudFront domain itself must be allowed.
+  frontend_origins = distinct(compact(concat(
+    [local.cloudfront_frontend_url, local.custom_frontend_url],
+    [for origin in split(",", var.cors_allowed_origins) : trimsuffix(trimspace(origin), "/")]
+  )))
+
+  # Proxy hops in front of Express: viewer -> CloudFront -> ALB -> task = 2; viewer -> ALB -> task = 1
+  trust_proxy_hops = var.enable_cloudfront_api_proxy ? "2" : "1"
+}
+
 # Web API ECS Task Definition
 resource "aws_ecs_task_definition" "web" {
   family                   = "${var.project_name}-${var.environment}-web"
@@ -43,25 +61,20 @@ resource "aws_ecs_task_definition" "web" {
       environment = [
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = tostring(var.container_port) },
-        { name = "CORS_ORIGIN", value = var.cors_allowed_origins },
+        { name = "CORS_ORIGIN", value = join(",", local.frontend_origins) },
+        { name = "FRONTEND_URL", value = local.primary_frontend_url },
+        { name = "GOOGLE_CALLBACK_URL", value = "${local.primary_frontend_url}/api/v1/auth/google/callback" },
+        { name = "TRUST_PROXY", value = local.trust_proxy_hops },
         { name = "ENABLE_BACKGROUND_SCHEDULER", value = "false" }, # Suppressed on web fleet; handled by EventBridge
+        # Local disk is ephemeral on Fargate. Safe today only because no route writes uploads
+        # (storageService has no callers); switch to an S3 provider before enabling file uploads.
         { name = "STORAGE_PROVIDER", value = "local" },
         { name = "STORAGE_LOCAL_DIR", value = "./uploads" },
         { name = "DEFAULT_TENANT_SLUG", value = "royal-bespoke" },
         { name = "CONVERSION_V1", value = "true" }
       ]
 
-      secrets = [
-        { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DATABASE_URL::" },
-        { name = "DIRECT_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DIRECT_URL::" },
-        { name = "JWT_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_SECRET::" },
-        { name = "JWT_REFRESH_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_REFRESH_SECRET::" },
-        { name = "RAZORPAY_KEY_ID", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_KEY_ID::" },
-        { name = "RAZORPAY_KEY_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_KEY_SECRET::" },
-        { name = "RAZORPAY_WEBHOOK_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_WEBHOOK_SECRET::" },
-        { name = "WHATSAPP_VERIFY_TOKEN", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:WHATSAPP_VERIFY_TOKEN::" },
-        { name = "WHATSAPP_APP_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:WHATSAPP_APP_SECRET::" }
-      ]
+      secrets = concat(local.ecs_database_secrets, local.ecs_backend_secrets)
 
       healthCheck = {
         command     = ["CMD-SHELL", "curl -fsS http://localhost:5000/health || exit 1"]
@@ -108,10 +121,7 @@ resource "aws_ecs_task_definition" "migration" {
         { name = "NODE_ENV", value = "production" }
       ]
 
-      secrets = [
-        { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DATABASE_URL::" },
-        { name = "DIRECT_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DIRECT_URL::" }
-      ]
+      secrets = local.ecs_database_secrets
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -138,9 +148,9 @@ resource "aws_ecs_service" "app" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.private[*].id
+    subnets          = local.ecs_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = false
+    assign_public_ip = local.ecs_assign_public_ip
   }
 
   load_balancer {
@@ -152,13 +162,25 @@ resource "aws_ecs_service" "app" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
+  # Stop a failing rollout (crash loop, failing /ready) and roll back to the last healthy task definition
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   depends_on = [
     aws_lb_listener.http,
-    aws_iam_role_policy_attachment.ecs_execution_standard
+    aws_iam_role_policy_attachment.ecs_execution_standard,
+    aws_iam_role_policy_attachment.ecs_secrets_attach,
+    # Secret values must exist before the first task tries to read them
+    aws_secretsmanager_secret_version.rds_credentials,
+    aws_secretsmanager_secret_version.backend
   ]
 
   lifecycle {
-    ignore_changes = [task_definition] # Allows CI/CD deployment scripts to update image tags independently
+    # task_definition: CI/CD updates image tags independently
+    # desired_count: owned by Application Auto Scaling after creation
+    ignore_changes = [task_definition, desired_count]
   }
 
   tags = {

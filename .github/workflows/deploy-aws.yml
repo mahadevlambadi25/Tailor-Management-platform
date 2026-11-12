@@ -42,10 +42,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: 'backend/package-lock.json'
 
@@ -134,35 +134,36 @@ jobs:
         env:
           IMAGE_URI: ${{ steps.build-image.outputs.image }}
         run: |
-          echo "Discovering VPC networking configuration..."
-          VPC_ID=$(aws ec2 describe-vpcs \
-            --filters "Name=tag:Name,Values=${PROJECT_NAME}-${ENVIRONMENT}-vpc" \
-            --query "Vpcs[0].VpcId" --output text)
-
-          if [ -z "$VPC_ID" ] || [ "$VPC_ID" == "None" ]; then
-            echo "::error::Target VPC '${PROJECT_NAME}-${ENVIRONMENT}-vpc' not found!"
+          # Reuse the web service's network settings (subnets, SG, public IP) so this works for both
+          # the lean public-subnet layout and the private-subnet + NAT layout.
+          echo "Reading network configuration from ECS service ${ECS_SERVICE}..."
+          NET=$(aws ecs describe-services --cluster "${ECS_CLUSTER}" --services "${ECS_SERVICE}" \
+            --query "services[0].networkConfiguration.awsvpcConfiguration" --output json)
+          SUBNETS=$(echo "$NET" | jq -r '.subnets | join(",")')
+          SEC_GROUPS=$(echo "$NET" | jq -r '.securityGroups | join(",")')
+          PUBLIC_IP=$(echo "$NET" | jq -r '.assignPublicIp')
+          if [ -z "$SUBNETS" ] || [ "$SUBNETS" == "null" ]; then
+            echo "::error::Could not read network configuration from ECS service ${ECS_SERVICE}"
             exit 1
           fi
+          echo "Subnets: $SUBNETS | Security groups: $SEC_GROUPS | Public IP: $PUBLIC_IP"
 
-          SUBNETS=$(aws ec2 describe-subnets \
-            --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Type,Values=PrivateApp" \
-            --query "Subnets[*].SubnetId" --output text | tr '\t' ',')
+          # RunTask overrides cannot change the image, so register a migration revision pinned to it
+          echo "Registering migration task definition revision for image: $IMAGE_URI ..."
+          aws ecs describe-task-definition --task-definition "${ECS_MIGRATION_TASK_DEF}" --query taskDefinition --output json \
+            | jq --arg IMG "$IMAGE_URI" '.containerDefinitions[0].image = $IMG
+                | {family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, requiresCompatibilities, cpu, memory}' \
+            > migration-task-def.json
+          MIGRATION_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://migration-task-def.json \
+            --query "taskDefinition.taskDefinitionArn" --output text)
+          echo "Migration task definition: $MIGRATION_TASK_DEF_ARN"
 
-          SEC_GROUP=$(aws ec2 describe-security-groups \
-            --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=${PROJECT_NAME}-${ENVIRONMENT}-ecs-tasks-sg" \
-            --query "SecurityGroups[0].GroupId" --output text)
-
-          echo "VPC: $VPC_ID"
-          echo "Private Subnets: $SUBNETS"
-          echo "Task Security Group: $SEC_GROUP"
-
-          echo "Launching one-off ECS migration task using image: $IMAGE_URI ..."
+          echo "Launching one-off ECS migration task..."
           TASK_ARN=$(aws ecs run-task \
             --cluster "${ECS_CLUSTER}" \
-            --task-definition "${ECS_MIGRATION_TASK_DEF}" \
+            --task-definition "$MIGRATION_TASK_DEF_ARN" \
             --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SEC_GROUP],assignPublicIp=DISABLED}" \
-            --overrides "{\"containerOverrides\":[{\"name\":\"migration-runner\",\"image\":\"$IMAGE_URI\"}]}" \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SEC_GROUPS],assignPublicIp=$PUBLIC_IP}" \
             --query "tasks[0].taskArn" --output text)
 
           if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" == "None" ]; then
@@ -265,10 +266,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
 
@@ -321,11 +322,16 @@ jobs:
           aws s3 sync frontend/dist "s3://${TARGET_BUCKET}" \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html"
+            --exclude "index.html" --exclude "sw.js" --exclude "manifest.json"
 
-          # 2. Upload index.html with no-cache so browsers always receive newest release instantly
-          aws s3 cp frontend/dist/index.html "s3://${TARGET_BUCKET}/index.html" \
-            --cache-control "no-cache, no-store, must-revalidate"
+          # 2. Upload entry points with no-cache so browsers always receive the newest release
+          #    (index.html, the PWA service worker and its manifest must never be cached long-term)
+          for f in index.html sw.js manifest.json; do
+            if [ -f "frontend/dist/$f" ]; then
+              aws s3 cp "frontend/dist/$f" "s3://${TARGET_BUCKET}/$f" \
+                --cache-control "no-cache, no-store, must-revalidate"
+            fi
+          done
 
       - name: Invalidate CloudFront CDN Cache
         if: steps.resolve-resources.outputs.dist_id != 'None' && steps.resolve-resources.outputs.dist_id != ''

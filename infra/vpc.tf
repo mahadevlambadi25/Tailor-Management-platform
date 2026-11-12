@@ -48,9 +48,23 @@ resource "aws_subnet" "private" {
   }
 }
 
+# ------------------------------------------------------------------------------
+# Where ECS tasks run
+# ------------------------------------------------------------------------------
+# enable_nat_gateway = false (lean): tasks run in PUBLIC subnets with a public IP for outbound
+#   internet (ECR pulls, Secrets Manager, Razorpay/Meta APIs). Inbound is still restricted to the
+#   ALB by the ecs_tasks security group. No NAT gateway, no Elastic IP.
+# enable_nat_gateway = true: tasks run in PRIVATE subnets and egress through a NAT gateway.
+locals {
+  nat_gateway_count    = var.enable_nat_gateway ? (var.enable_nat_gateway_per_az ? length(var.public_subnet_cidrs) : 1) : 0
+  ecs_subnet_ids       = var.enable_nat_gateway ? aws_subnet.private[*].id : aws_subnet.public[*].id
+  ecs_subnet_cidrs     = var.enable_nat_gateway ? var.private_subnet_cidrs : var.public_subnet_cidrs
+  ecs_assign_public_ip = !var.enable_nat_gateway
+}
+
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway_per_az ? length(var.public_subnet_cidrs) : 1
+  count  = local.nat_gateway_count
   domain = "vpc"
 
   tags = {
@@ -62,7 +76,7 @@ resource "aws_eip" "nat" {
 
 # NAT Gateway for Outbound Internet Egress from Private Subnets (Supabase DB & External Webhooks)
 resource "aws_nat_gateway" "nat" {
-  count         = var.enable_nat_gateway_per_az ? length(var.public_subnet_cidrs) : 1
+  count         = local.nat_gateway_count
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
@@ -98,9 +112,13 @@ resource "aws_route_table" "private" {
   count  = length(var.private_subnet_cidrs)
   vpc_id = aws_vpc.main.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = var.enable_nat_gateway_per_az ? aws_nat_gateway.nat[count.index].id : aws_nat_gateway.nat[0].id
+  # Default route only when a NAT gateway exists; otherwise these subnets (incl. RDS) stay fully private
+  dynamic "route" {
+    for_each = var.enable_nat_gateway ? [1] : []
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = var.enable_nat_gateway_per_az ? aws_nat_gateway.nat[count.index].id : aws_nat_gateway.nat[0].id
+    }
   }
 
   tags = {

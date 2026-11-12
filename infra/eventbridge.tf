@@ -25,14 +25,9 @@ resource "aws_ecs_task_definition" "nudge_worker" {
         { name = "CONVERSION_V1", value = "true" }
       ]
 
-      secrets = [
-        { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DATABASE_URL::" },
-        { name = "DIRECT_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DIRECT_URL::" },
-        { name = "JWT_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_SECRET::" },
-        { name = "JWT_REFRESH_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_REFRESH_SECRET::" },
-        { name = "WHATSAPP_VERIFY_TOKEN", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:WHATSAPP_VERIFY_TOKEN::" },
-        { name = "WHATSAPP_APP_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:WHATSAPP_APP_SECRET::" }
-      ]
+      # Same sources as the web service: RDS URL from rds-credentials, JWT (required by config at
+      # startup in production) and any configured third-party keys from backend-secrets
+      secrets = concat(local.ecs_database_secrets, local.ecs_backend_secrets)
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -75,9 +70,9 @@ resource "aws_cloudwatch_event_target" "nudge_worker_target" {
     platform_version    = "LATEST"
 
     network_configuration {
-      subnets          = aws_subnet.private[*].id
+      subnets          = local.ecs_subnet_ids
       security_groups  = [aws_security_group.ecs_tasks.id]
-      assign_public_ip = false
+      assign_public_ip = local.ecs_assign_public_ip
     }
   }
 }

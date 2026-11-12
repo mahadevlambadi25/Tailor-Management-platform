@@ -32,7 +32,7 @@ resource "aws_security_group" "alb" {
     from_port   = var.container_port
     to_port     = var.container_port
     protocol    = "tcp"
-    cidr_blocks = var.private_subnet_cidrs
+    cidr_blocks = local.ecs_subnet_cidrs # subnets where ECS tasks actually run (see vpc.tf)
   }
 
   tags = {

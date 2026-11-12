@@ -98,7 +98,8 @@ export class RazorpayService {
    * Format: HMAC_SHA256(order_id + "|" + payment_id, keySecret)
    */
   static generatePaymentSignature(orderId: string, paymentId: string, secret?: string): string {
-    const keySecret = secret || config.razorpayKeySecret || 'placeholder_secret';
+    // config supplies a dev-only fallback outside production; in production an unset secret stays empty
+    const keySecret = secret || config.razorpayKeySecret;
     return crypto
       .createHmac('sha256', keySecret)
       .update(`${orderId}|${paymentId}`)
@@ -118,7 +119,8 @@ export class RazorpayService {
     const { orderId, paymentId, signature } = params;
     if (!orderId || !paymentId || !signature) return false;
 
-    const keySecret = params.secret || config.razorpayKeySecret || 'placeholder_secret';
+    const keySecret = params.secret || config.razorpayKeySecret;
+    if (!keySecret) return false; // fail closed: no secret configured
     const expected = this.generatePaymentSignature(orderId, paymentId, keySecret);
 
     try {
@@ -135,7 +137,7 @@ export class RazorpayService {
    * Generates HMAC-SHA256 signature for Razorpay webhook verification.
    */
   static generateWebhookSignature(payload: string | Buffer, secret?: string): string {
-    const webhookSecret = secret || config.razorpayWebhookSecret || config.razorpayKeySecret || 'placeholder_secret';
+    const webhookSecret = secret || config.razorpayWebhookSecret;
     return crypto
       .createHmac('sha256', webhookSecret)
       .update(payload)
@@ -148,7 +150,8 @@ export class RazorpayService {
   static verifyWebhookSignature(payload: string | Buffer, signature: string, secret?: string): boolean {
     if (!payload || !signature) return false;
 
-    const webhookSecret = secret || config.razorpayWebhookSecret || config.razorpayKeySecret || 'placeholder_secret';
+    const webhookSecret = secret || config.razorpayWebhookSecret;
+    if (!webhookSecret) return false; // fail closed: no secret configured
     const expected = this.generateWebhookSignature(payload, webhookSecret);
 
     try {

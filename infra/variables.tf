@@ -59,9 +59,9 @@ variable "fargate_memory" {
 }
 
 variable "desired_count" {
-  description = "Desired number of running ECS Web task instances."
+  description = "Initial number of ECS web tasks (autoscaling adjusts it afterwards between min_capacity and max_capacity)."
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "min_capacity" {
@@ -89,9 +89,15 @@ variable "acm_certificate_arn" {
 }
 
 variable "cors_allowed_origins" {
-  description = "Allowed CORS origin URLs (comma-separated) for the frontend web application."
+  description = "Additional allowed CORS origins (comma-separated). The CloudFront domain and frontend_custom_domain are always allowed automatically."
   type        = string
-  default     = "https://app.tailorsystem.com,https://tailorsystem.com"
+  default     = ""
+}
+
+variable "enable_nat_gateway" {
+  description = "false (default, lean): ECS tasks run in public subnets with a public IP and inbound restricted to the ALB; no NAT gateway or Elastic IP. true: tasks run in private subnets behind a NAT gateway."
+  type        = bool
+  default     = false
 }
 
 variable "enable_nat_gateway_per_az" {
@@ -204,9 +210,78 @@ variable "cloudfront_acm_certificate_arn" {
 # ==============================================================================
 
 variable "github_repository" {
-  description = "GitHub repository path for OIDC trust policy (e.g. 'owner/repo' or '*' for initial setup)."
+  description = "Exact GitHub repository ('owner/repo') allowed to assume the deploy role via OIDC. Wildcards are rejected."
   type        = string
-  default     = "*"
+  default     = "mahadevlambadi25/Tailor-Management-platform"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository must be an exact 'owner/repo' value; wildcards are not allowed."
+  }
+}
+
+variable "github_deploy_branch" {
+  description = "The only branch whose GitHub Actions runs may assume the deploy role (must match the deploy workflow trigger)."
+  type        = string
+  default     = "main"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_./-]+$", var.github_deploy_branch))
+    error_message = "github_deploy_branch must be an exact branch name; wildcards are not allowed."
+  }
+}
+
+# ==============================================================================
+# Secrets Manager & Optional Third-Party Credentials
+# ==============================================================================
+
+variable "secrets_recovery_window_in_days" {
+  description = "Days a deleted Secrets Manager secret stays recoverable (7-30). Protects against accidental 'tofu destroy'."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.secrets_recovery_window_in_days >= 7 && var.secrets_recovery_window_in_days <= 30
+    error_message = "secrets_recovery_window_in_days must be between 7 and 30."
+  }
+}
+
+# Leave empty until real credentials exist. Empty values are NOT written to Secrets Manager and NOT
+# injected into ECS; the backend then fails closed (payment/webhook signature checks reject requests).
+# Supply via TF_VAR_* environment variables, never in a committed file.
+variable "razorpay_key_id" {
+  description = "Razorpay key ID (rzp_live_... or rzp_test_...). Optional."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "razorpay_key_secret" {
+  description = "Razorpay key secret. Optional."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "razorpay_webhook_secret" {
+  description = "Razorpay webhook signing secret. Optional."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "whatsapp_verify_token" {
+  description = "Meta WhatsApp webhook verify token. Optional."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "whatsapp_app_secret" {
+  description = "Meta WhatsApp app secret used to verify webhook signatures. Optional."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "create_github_oidc_provider" {

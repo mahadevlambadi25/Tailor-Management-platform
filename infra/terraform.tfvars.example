@@ -16,7 +16,7 @@ enable_nat_gateway_per_az = false # Set true for high redundancy; false for sing
 # Fargate Compute Sizing
 fargate_cpu    = 512   # 0.5 vCPU
 fargate_memory = 1024  # 1024 MB RAM
-desired_count  = 2     # 2 Web tasks running across AZs
+desired_count  = 1     # Initial web tasks; set 2 for multi-AZ redundancy (autoscaling 1-4)
 min_capacity   = 1
 max_capacity   = 4
 
@@ -24,7 +24,9 @@ max_capacity   = 4
 # acm_certificate_arn = "arn:aws:acm:ap-south-1:123456789012:certificate/your-cert-uuid"
 
 # Frontend CORS Configuration
-cors_allowed_origins = "https://app.tailorsystem.com,https://tailorsystem.com"
+# The CloudFront domain and frontend_custom_domain are allowed automatically.
+# Only list extra origins here (comma-separated), e.g. a marketing site.
+cors_allowed_origins = ""
 
 # RDS PostgreSQL Configuration (Cost-conscious defaults)
 database_subnet_cidrs      = ["10.0.30.0/24", "10.0.40.0/24"]
@@ -43,5 +45,17 @@ enable_cloudfront_api_proxy = true             # Proxies /api/* to ALB to elimin
 # frontend_custom_domain      = "app.tailorsystem.com"
 # cloudfront_acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/your-cf-cert-uuid"
 
-# CI/CD Deployment (GitHub Actions OIDC)
-# github_repository = "your-github-username/tailor-management"
+# CI/CD Deployment (GitHub Actions OIDC) - exact repo and branch only, no wildcards
+github_repository    = "mahadevlambadi25/Tailor-Management-platform"
+github_deploy_branch = "main"
+
+# Secrets Manager
+secrets_recovery_window_in_days = 7 # 7-30 days to recover an accidentally deleted secret
+
+# Optional third-party credentials: DO NOT put real values in this file.
+# Export them in your shell before plan/apply, e.g.:
+#   export TF_VAR_razorpay_key_id=...        TF_VAR_razorpay_key_secret=...
+#   export TF_VAR_razorpay_webhook_secret=...
+#   export TF_VAR_whatsapp_verify_token=...  TF_VAR_whatsapp_app_secret=...
+# Left unset, they are not stored and the backend rejects payment/webhook signatures (fail closed).
+# JWT secrets and the RDS password are generated automatically.

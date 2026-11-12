@@ -59,8 +59,9 @@ resource "aws_db_parameter_group" "postgres16" {
   description = "Custom parameter group for Tailor Management RDS PostgreSQL 16"
 
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot" # how AWS stores this parameter; avoids a perpetual plan diff
   }
 
   parameter {
@@ -88,8 +89,10 @@ resource "aws_db_instance" "postgres" {
   identifier = "${var.project_name}-${var.environment}-postgres"
 
   # Engine Specification (Compatible with Prisma v5.22.0)
+  # Major version only: AWS picks the current default 16.x minor in ap-south-1 (16.3 is retired there)
+  # and auto_minor_version_upgrade can move it forward without causing plan drift.
   engine         = "postgres"
-  engine_version = "16.3"
+  engine_version = "16"
 
   # Sizing & Storage
   instance_class        = var.db_instance_class
@@ -143,7 +146,7 @@ resource "aws_db_instance" "postgres" {
 resource "aws_secretsmanager_secret" "rds_credentials" {
   name                    = "${var.project_name}/${var.environment}/rds-credentials"
   description             = "Master credentials and connection strings for ${var.project_name} RDS PostgreSQL"
-  recovery_window_in_days = 0
+  recovery_window_in_days = var.secrets_recovery_window_in_days
 
   tags = {
     Name = "${var.project_name}-${var.environment}-rds-credentials"
