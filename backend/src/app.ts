@@ -35,7 +35,7 @@ export const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Parse allowed CORS origins (support comma-separated list and strip trailing slashes)
-const allowedOrigins = (config.corsOrigin || 'http://localhost:5173')
+const allowedOrigins = (config.corsOrigin || (config.nodeEnv === 'production' ? '' : 'http://localhost:5173'))
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean);

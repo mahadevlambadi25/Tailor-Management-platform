@@ -22,3 +22,26 @@ max_capacity   = 4
 
 # HTTPS Configuration (Optional: provide ACM ARN once issued)
 # acm_certificate_arn = "arn:aws:acm:ap-south-1:123456789012:certificate/your-cert-uuid"
+
+# Frontend CORS Configuration
+cors_allowed_origins = "https://app.tailorsystem.com,https://tailorsystem.com"
+
+# RDS PostgreSQL Configuration (Cost-conscious defaults)
+database_subnet_cidrs      = ["10.0.30.0/24", "10.0.40.0/24"]
+db_name                    = "tailor_management"
+db_username                = "tailor_admin"
+db_instance_class          = "db.t4g.micro" # Graviton2 (~$11.70/mo in ap-south-1)
+db_allocated_storage       = 20             # gp3 SSD
+db_max_allocated_storage   = 100            # Storage autoscaling ceiling
+db_multi_az                = false          # Set true for HA production
+db_deletion_protection     = true           # Safety guard against accidental teardown
+db_backup_retention_period = 7              # Retain 7 days of automated snapshots
+
+# Frontend S3 + CloudFront Hosting
+cloudfront_price_class      = "PriceClass_200" # Includes India (ap-south-1) edge locations
+enable_cloudfront_api_proxy = true             # Proxies /api/* to ALB to eliminate CORS
+# frontend_custom_domain      = "app.tailorsystem.com"
+# cloudfront_acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/your-cf-cert-uuid"
+
+# CI/CD Deployment (GitHub Actions OIDC)
+# github_repository = "your-github-username/tailor-management"

@@ -45,3 +45,29 @@ coverage/
 
 # Local Scratch / Disposable Verification Scripts
 backend/scripts/run-disposable-verification.js
+
+# Terraform / OpenTofu
+# State and plan files can contain plaintext secrets (RDS password, Secrets Manager values)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+
+# Variable files (real values); terraform.tfvars.example stays tracked
+*.tfvars
+*.tfvars.json
+
+# Crash logs (also covered by *.log above; kept explicit in case that rule changes)
+crash.log
+crash.*.log
+
+# Local overrides and CLI config
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# NOTE: do NOT ignore .terraform.lock.hcl; it pins provider checksums and must be committed

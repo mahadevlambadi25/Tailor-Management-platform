@@ -35,7 +35,7 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'supersecret_tailor_refresh_key_2026_jwt',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173'),
   storageProvider: process.env.STORAGE_PROVIDER || 'local',
   storageLocalDir: process.env.STORAGE_LOCAL_DIR || './uploads',
   defaultTenantSlug: process.env.DEFAULT_TENANT_SLUG || 'royal-bespoke',

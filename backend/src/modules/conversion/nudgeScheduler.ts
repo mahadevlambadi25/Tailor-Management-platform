@@ -2,15 +2,21 @@ import { prisma } from '../../core/prisma';
 import { logger } from '../../core/logger';
 import { config } from '../../config';
 import { NudgeService } from './nudgeService';
+import { OutboxWorker, ProcessBatchResult } from './outboxWorker';
 
 export interface RunCycleOptions {
   force?: boolean;
+  processOutbox?: boolean;
+  outboxWorker?: OutboxWorker;
+  maxOutboxBatches?: number;
+  client?: any;
 }
 
 export interface RunCycleResult {
   processedCount: number;
   candidateCount: number;
   skipped: boolean;
+  outboxSummary?: ProcessBatchResult;
 }
 
 export class NudgeScheduler {
@@ -55,6 +61,66 @@ export class NudgeScheduler {
     }, 10000);
   }
 
+  /**
+   * Processes pending outbox messages in batches until the queue is drained
+   * or maxBatches is reached.
+   * - Claims rows via FOR UPDATE SKIP LOCKED with per-row UUID lease tokens
+   * - Stale workers are rejected on update to prevent split-brain overwrites
+   * - Provider network requests execute outside open DB transactions
+   * - Retries with exponential backoff on retryable provider errors
+   */
+  static async processOutboxQueue(
+    worker?: OutboxWorker,
+    client: any = prisma,
+    maxBatches: number = 10
+  ): Promise<ProcessBatchResult> {
+    const activeWorker = worker || new OutboxWorker();
+    const aggregateResult: ProcessBatchResult = {
+      claimedCount: 0,
+      succeededCount: 0,
+      failedCount: 0,
+      retriedCount: 0,
+      staleCount: 0
+    };
+
+    let batchesProcessed = 0;
+    const batchSizeLimit = typeof (activeWorker as any).getBatchSize === 'function'
+      ? (activeWorker as any).getBatchSize()
+      : 10;
+
+    while (batchesProcessed < maxBatches) {
+      try {
+        const batchResult = await activeWorker.processBatch(client);
+        aggregateResult.claimedCount += batchResult.claimedCount;
+        aggregateResult.succeededCount += batchResult.succeededCount;
+        aggregateResult.failedCount += batchResult.failedCount;
+        aggregateResult.retriedCount += batchResult.retriedCount;
+        aggregateResult.staleCount += batchResult.staleCount;
+
+        batchesProcessed++;
+
+        // If no messages or fewer messages than batchSize were claimed, queue is drained
+        if (batchResult.claimedCount === 0 || batchResult.claimedCount < batchSizeLimit) {
+          break;
+        }
+      } catch (err: any) {
+        logger.error(`[NudgeScheduler] Outbox queue batch execution error: ${err?.message || err}`, err);
+        // Break out of draining loop so remaining messages remain safely PENDING for next run
+        break;
+      }
+    }
+
+    if (aggregateResult.claimedCount > 0) {
+      logger.info(
+        `[NudgeScheduler] Outbox queue processed ${batchesProcessed} batch(es): ` +
+        `claimed=${aggregateResult.claimedCount}, succeeded=${aggregateResult.succeededCount}, ` +
+        `retried=${aggregateResult.retriedCount}, failed=${aggregateResult.failedCount}, stale=${aggregateResult.staleCount}`
+      );
+    }
+
+    return aggregateResult;
+  }
+
   static async runCycle(options?: RunCycleOptions): Promise<RunCycleResult> {
     if (!config.conversionV1) {
       return { processedCount: 0, candidateCount: 0, skipped: true };
@@ -90,7 +156,27 @@ export class NudgeScheduler {
       }
 
       logger.info(`[NudgeScheduler] Completed nudge cycle for ${candidateTenants.length} candidate tenant(s)`);
-      return { processedCount, candidateCount: candidateTenants.length, skipped: false };
+
+      // Drain pending outbox queue
+      let outboxSummary: ProcessBatchResult | undefined;
+      if (options?.processOutbox !== false) {
+        try {
+          outboxSummary = await this.processOutboxQueue(
+            options?.outboxWorker,
+            options?.client || prisma,
+            options?.maxOutboxBatches
+          );
+        } catch (outboxErr: any) {
+          logger.error(`[NudgeScheduler] Non-fatal error processing outbox queue in runCycle: ${outboxErr?.message || outboxErr}`, outboxErr);
+        }
+      }
+
+      return {
+        processedCount,
+        candidateCount: candidateTenants.length,
+        skipped: false,
+        outboxSummary
+      };
     } catch (err: any) {
       logger.error(`[NudgeScheduler] Error executing scheduled nudge cycle: ${err?.message}`, err);
       throw err;
@@ -110,9 +196,42 @@ export class NudgeScheduler {
     logger.info('[NudgeScheduler] Executing standalone EventBridge nudge cycle...');
     try {
       const result = await this.runCycle({ force: true });
-      logger.info(`[NudgeScheduler] Standalone cycle completed: processed ${result.processedCount}/${result.candidateCount} tenants (skipped: ${result.skipped})`);
+      logger.info(
+        `[NudgeScheduler] Standalone cycle completed: processed ${result.processedCount}/${result.candidateCount} tenants (skipped: ${result.skipped})` +
+        (result.outboxSummary ? `, outbox claimed=${result.outboxSummary.claimedCount}, succeeded=${result.outboxSummary.succeededCount}` : '')
+      );
     } catch (err: any) {
       logger.error(`[NudgeScheduler] Standalone cycle failed with error: ${err?.message || err}`, err);
+      exitCode = 1;
+    } finally {
+      logger.info('[NudgeScheduler] Performing Prisma disconnect...');
+      try {
+        await prisma.$disconnect();
+        logger.info('[NudgeScheduler] Prisma disconnected cleanly.');
+      } catch (dcErr: any) {
+        logger.error(`[NudgeScheduler] Error disconnecting Prisma Client: ${dcErr?.message || dcErr}`);
+        exitCode = 1;
+      }
+    }
+    return exitCode;
+  }
+
+  /**
+   * Standalone entrypoint for dedicated Outbox Worker draining runs.
+   * - Processes outbox batches until empty or maxBatches reached
+   * - Guarantees Prisma disconnection on exit
+   */
+  static async runOutboxWorkerStandalone(maxBatches: number = 20): Promise<number> {
+    let exitCode = 0;
+    logger.info('[NudgeScheduler] Executing standalone Outbox Worker draining cycle...');
+    try {
+      const summary = await this.processOutboxQueue(undefined, prisma, maxBatches);
+      logger.info(
+        `[NudgeScheduler] Standalone outbox cycle completed: claimed=${summary.claimedCount}, ` +
+        `succeeded=${summary.succeededCount}, retried=${summary.retriedCount}, failed=${summary.failedCount}`
+      );
+    } catch (err: any) {
+      logger.error(`[NudgeScheduler] Standalone outbox cycle failed with error: ${err?.message || err}`, err);
       exitCode = 1;
     } finally {
       logger.info('[NudgeScheduler] Performing Prisma disconnect...');

@@ -196,6 +196,173 @@ async function runEventBridgeSchedulerTests() {
       assert(typeof workerModule.main === 'function', 'Test 8.1: scripts/run-nudge-worker.js exports main function');
     }
 
+    // -------------------------------------------------------------------------
+    // Test 9: Outbox Worker Multi-Batch Draining & Lifecycle
+    // -------------------------------------------------------------------------
+    console.log('\n[TEST GROUP 9: OUTBOX WORKER MULTI-BATCH DRAINING]');
+    {
+      const { OutboxWorker } = require('../src/modules/conversion/outboxWorker');
+
+      // Mock worker that simulates 2 full batches of 10 messages and a 3rd empty batch
+      let callCount = 0;
+      const mockBatches = [
+        { claimedCount: 10, succeededCount: 10, failedCount: 0, retriedCount: 0, staleCount: 0 },
+        { claimedCount: 10, succeededCount: 8, failedCount: 1, retriedCount: 1, staleCount: 0 },
+        { claimedCount: 0, succeededCount: 0, failedCount: 0, retriedCount: 0, staleCount: 0 }
+      ];
+
+      const mockWorker: any = {
+        getBatchSize: () => 10,
+        processBatch: async () => {
+          return mockBatches[callCount++] || { claimedCount: 0, succeededCount: 0, failedCount: 0, retriedCount: 0, staleCount: 0 };
+        }
+      };
+
+      const result = await NudgeScheduler.processOutboxQueue(mockWorker, {}, 5);
+      assert(callCount === 3, 'Test 9.1: processOutboxQueue drained queue until empty batch (3 calls)');
+      assert(result.claimedCount === 20, 'Test 9.2: Aggregate claimedCount matches sum of batches (20)');
+      assert(result.succeededCount === 18, 'Test 9.3: Aggregate succeededCount is 18');
+      assert(result.failedCount === 1, 'Test 9.4: Aggregate failedCount is 1');
+      assert(result.retriedCount === 1, 'Test 9.5: Aggregate retriedCount is 1');
+
+      // Test maxBatches limit
+      let maxBatchCalls = 0;
+      const infiniteQueueWorker: any = {
+        getBatchSize: () => 10,
+        processBatch: async () => {
+          maxBatchCalls++;
+          return { claimedCount: 10, succeededCount: 10, failedCount: 0, retriedCount: 0, staleCount: 0 };
+        }
+      };
+
+      const maxResult = await NudgeScheduler.processOutboxQueue(infiniteQueueWorker, {}, 2);
+      assert(maxBatchCalls === 2, 'Test 9.6: processOutboxQueue strictly stops at maxBatches limit');
+      assert(maxResult.claimedCount === 20, 'Test 9.7: Correct count capped at maxBatches');
+
+      // Test processOutbox: false skips outbox queue
+      (prisma.tenant as any).findMany = async () => [];
+      let skippedWorkerCalled = false;
+      const skippedWorker: any = {
+        getBatchSize: () => 10,
+        processBatch: async () => {
+          skippedWorkerCalled = true;
+          return { claimedCount: 0, succeededCount: 0, failedCount: 0, retriedCount: 0, staleCount: 0 };
+        }
+      };
+
+      const skippedCycle = await NudgeScheduler.runCycle({
+        force: true,
+        processOutbox: false,
+        outboxWorker: skippedWorker
+      });
+      assert(skippedWorkerCalled === false, 'Test 9.8: runCycle with processOutbox: false skips worker execution');
+      assert(skippedCycle.outboxSummary === undefined, 'Test 9.9: outboxSummary is undefined when processOutbox: false');
+    }
+
+    // -------------------------------------------------------------------------
+    // Test 10: Outbox Worker Overlap Protection (isRunning)
+    // -------------------------------------------------------------------------
+    console.log('\n[TEST GROUP 10: OUTBOX WORKER OVERLAP PROTECTION]');
+    {
+      const { OutboxWorker } = require('../src/modules/conversion/outboxWorker');
+      const testWorker = new OutboxWorker();
+
+      // Mock claimBatch to introduce an async delay
+      let claimCalls = 0;
+      (testWorker as any).claimBatch = async () => {
+        claimCalls++;
+        await new Promise((r) => setTimeout(r, 40));
+        return [];
+      };
+
+      const [p1, p2] = await Promise.all([
+        testWorker.processBatch({}),
+        testWorker.processBatch({})
+      ]);
+
+      assert(claimCalls === 1, 'Test 10.1: Only one concurrent batch proceeded to claimBatch');
+      assert(
+        (p1.claimedCount === 0 && p2.claimedCount === 0),
+        'Test 10.2: Overlapping invocation was safely skipped with 0 claimed'
+      );
+      assert((testWorker as any).isRunning === false, 'Test 10.3: Worker isRunning flag was safely reset in finally');
+    }
+
+    // -------------------------------------------------------------------------
+    // Test 11: Standalone Outbox Worker Entrypoint & Prisma Cleanup
+    // -------------------------------------------------------------------------
+    console.log('\n[TEST GROUP 11: STANDALONE OUTBOX WORKER & CLEANUP]');
+    {
+      let disconnectedOnSuccess = false;
+      (prisma as any).$disconnect = async () => {
+        disconnectedOnSuccess = true;
+      };
+
+      // Mock processOutboxQueue
+      const originalProcessQueue = NudgeScheduler.processOutboxQueue;
+      (NudgeScheduler as any).processOutboxQueue = async () => ({
+        claimedCount: 5,
+        succeededCount: 5,
+        failedCount: 0,
+        retriedCount: 0,
+        staleCount: 0
+      });
+
+      try {
+        const exitCode = await NudgeScheduler.runOutboxWorkerStandalone(5);
+        assert(exitCode === 0, 'Test 11.1: runOutboxWorkerStandalone() returns exit code 0 on success');
+        assert(Boolean(disconnectedOnSuccess), 'Test 11.2: prisma.$disconnect() was executed on success');
+
+        // Test failure path
+        let disconnectedOnFailure = false;
+        (prisma as any).$disconnect = async () => {
+          disconnectedOnFailure = true;
+        };
+        (NudgeScheduler as any).processOutboxQueue = async () => {
+          throw new Error('Database deadlocked');
+        };
+
+        const failCode = await NudgeScheduler.runOutboxWorkerStandalone(5);
+        assert(failCode === 1, 'Test 11.3: runOutboxWorkerStandalone() returns exit code 1 on error');
+        assert(Boolean(disconnectedOnFailure), 'Test 11.4: prisma.$disconnect() was guaranteed on error');
+      } finally {
+        (NudgeScheduler as any).processOutboxQueue = originalProcessQueue;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Test 12: Production CORS Configuration Guard
+    // -------------------------------------------------------------------------
+    console.log('\n[TEST GROUP 12: CORS ORIGIN PRODUCTION CONFIGURATION]');
+    {
+      // Test parsing logic for comma-separated allowed origins
+      const testOrigins = 'https://app.tailorsystem.com, https://tailorsystem.com/';
+      const parsed = testOrigins
+        .split(',')
+        .map((origin) => origin.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+
+      assert(parsed.length === 2, 'Test 12.1: Exactly 2 origins parsed');
+      assert(parsed[0] === 'https://app.tailorsystem.com', 'Test 12.2: Primary app domain parsed cleanly');
+      assert(parsed[1] === 'https://tailorsystem.com', 'Test 12.3: Trailing slash trimmed from apex domain');
+
+      function resolveCorsOrigin(corsEnv?: string, nodeEnv: string = 'development'): string {
+        return corsEnv || (nodeEnv === 'production' ? '' : 'http://localhost:5173');
+      }
+
+      // Test that when NODE_ENV=production and CORS_ORIGIN is unset, fallback is empty (no localhost)
+      const prodFallback = resolveCorsOrigin(undefined, 'production');
+      assert(!prodFallback.includes('localhost'), 'Test 12.4: Production mode does not fallback to localhost when CORS_ORIGIN is unset');
+
+      // Test that when NODE_ENV=development and CORS_ORIGIN is unset, fallback remains localhost:5173
+      const devFallback = resolveCorsOrigin(undefined, 'development');
+      assert(devFallback === 'http://localhost:5173', 'Test 12.5: Development mode correctly falls back to localhost:5173');
+
+      // Test that configured CORS_ORIGIN is used
+      const customConfig = resolveCorsOrigin('https://app.tailorsystem.com', 'production');
+      assert(customConfig === 'https://app.tailorsystem.com', 'Test 12.6: Configured CORS_ORIGIN takes precedence');
+    }
+
   } finally {
     process.env.ENABLE_BACKGROUND_SCHEDULER = prevEnv;
     (prisma.tenant as any).findMany = originalFindMany;

@@ -62,6 +62,14 @@ export class OutboxWorker {
     this.providerOverride = options?.providerOverride;
   }
 
+  getBatchSize(): number {
+    return this.batchSize;
+  }
+
+  getWorkerId(): string {
+    return this.workerId;
+  }
+
   /**
    * Claims a batch of PENDING or expired PROCESSING messages.
    * Uses FOR UPDATE SKIP LOCKED and generates an autonomous gen_random_uuid() leaseToken per row.
@@ -305,33 +313,49 @@ export class OutboxWorker {
    * Executes a single polling and processing cycle across a batch.
    */
   async processBatch(client: any = prisma): Promise<ProcessBatchResult> {
-    const messages = await this.claimBatch(client);
-    const result: ProcessBatchResult = {
-      claimedCount: messages.length,
-      succeededCount: 0,
-      failedCount: 0,
-      retriedCount: 0,
-      staleCount: 0
-    };
-
-    if (messages.length === 0) {
-      return result;
+    if (this.isRunning) {
+      logger.warn(`[OutboxWorker] Worker ${this.workerId} is already running a batch; skipping overlapping execution`);
+      return {
+        claimedCount: 0,
+        succeededCount: 0,
+        failedCount: 0,
+        retriedCount: 0,
+        staleCount: 0
+      };
     }
 
-    logger.info(`[OutboxWorker] Worker ${this.workerId} claimed ${messages.length} message(s)`);
+    this.isRunning = true;
+    try {
+      const messages = await this.claimBatch(client);
+      const result: ProcessBatchResult = {
+        claimedCount: messages.length,
+        succeededCount: 0,
+        failedCount: 0,
+        retriedCount: 0,
+        staleCount: 0
+      };
 
-    for (const msg of messages) {
-      try {
-        const outcome = await this.processMessage(msg, client);
-        if (outcome === 'SUCCEEDED') result.succeededCount++;
-        else if (outcome === 'FAILED') result.failedCount++;
-        else if (outcome === 'RETRIED') result.retriedCount++;
-        else if (outcome === 'STALE') result.staleCount++;
-      } catch (err: any) {
-        logger.error(`[OutboxWorker] Unhandled error processing message ${msg.id}: ${err?.message}`, err);
+      if (messages.length === 0) {
+        return result;
       }
-    }
 
-    return result;
+      logger.info(`[OutboxWorker] Worker ${this.workerId} claimed ${messages.length} message(s)`);
+
+      for (const msg of messages) {
+        try {
+          const outcome = await this.processMessage(msg, client);
+          if (outcome === 'SUCCEEDED') result.succeededCount++;
+          else if (outcome === 'FAILED') result.failedCount++;
+          else if (outcome === 'RETRIED') result.retriedCount++;
+          else if (outcome === 'STALE') result.staleCount++;
+        } catch (err: any) {
+          logger.error(`[OutboxWorker] Unhandled error processing message ${msg.id}: ${err?.message}`, err);
+        }
+      }
+
+      return result;
+    } finally {
+      this.isRunning = false;
+    }
   }
 }

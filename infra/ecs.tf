@@ -43,6 +43,7 @@ resource "aws_ecs_task_definition" "web" {
       environment = [
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = tostring(var.container_port) },
+        { name = "CORS_ORIGIN", value = var.cors_allowed_origins },
         { name = "ENABLE_BACKGROUND_SCHEDULER", value = "false" }, # Suppressed on web fleet; handled by EventBridge
         { name = "STORAGE_PROVIDER", value = "local" },
         { name = "STORAGE_LOCAL_DIR", value = "./uploads" },
@@ -83,6 +84,48 @@ resource "aws_ecs_task_definition" "web" {
 
   tags = {
     Name = "${var.project_name}-${var.environment}-web-task"
+  }
+}
+
+# Database Migration One-Off ECS Task Definition (Runs inside private VPC)
+resource "aws_ecs_task_definition" "migration" {
+  family                   = "${var.project_name}-${var.environment}-db-migration"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "migration-runner"
+      image     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
+      essential = true
+      command   = ["node", "scripts/deploy-migrations.js"]
+
+      environment = [
+        { name = "NODE_ENV", value = "production" }
+      ]
+
+      secrets = [
+        { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DATABASE_URL::" },
+        { name = "DIRECT_URL", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:DIRECT_URL::" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "db-migration"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-db-migration-task"
   }
 }
 
