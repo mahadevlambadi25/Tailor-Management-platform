@@ -97,7 +97,8 @@ resource "aws_db_instance" "postgres" {
   # Sizing & Storage
   instance_class        = var.db_instance_class
   allocated_storage     = var.db_allocated_storage
-  max_allocated_storage = var.db_max_allocated_storage # Storage autoscaling up to 100 GB
+  # Storage autoscaling up to db_max_allocated_storage (off while free_plan_mode = true)
+  max_allocated_storage = var.free_plan_mode ? null : var.db_max_allocated_storage
   storage_type          = "gp3"
   storage_encrypted     = true
 
@@ -115,7 +116,7 @@ resource "aws_db_instance" "postgres" {
 
   # Reliability, Backups & Maintenance
   multi_az              = var.db_multi_az
-  backup_retention_period = var.db_backup_retention_period
+  backup_retention_period = var.free_plan_mode ? min(var.db_backup_retention_period, 1) : var.db_backup_retention_period
   backup_window         = "02:00-03:00" # UTC
   maintenance_window    = "Mon:03:00-Mon:04:00" # UTC
   copy_tags_to_snapshot = true
@@ -133,7 +134,10 @@ resource "aws_db_instance" "postgres" {
   lifecycle {
     ignore_changes = [
       password,
-      latest_restorable_time
+      # AWS owns the minor version (auto_minor_version_upgrade). Without this, the stored actual
+      # version (e.g. 16.13) differs from "16" and OpenTofu would request a modify/downgrade.
+      # For a deliberate MAJOR upgrade, remove this line temporarily and change engine_version.
+      engine_version
     ]
   }
 

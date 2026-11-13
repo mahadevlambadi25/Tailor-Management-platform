@@ -166,9 +166,23 @@ variable "db_deletion_protection" {
 }
 
 variable "db_backup_retention_period" {
-  description = "Number of days to retain automated daily backups."
+  description = "Number of days to retain automated daily backups (used as-is on a Paid plan; capped to 1 when free_plan_mode = true)."
   type        = number
   default     = 7
+}
+
+# AWS Free plan (account 885072868605, Nov 2026) rejects RDS backup retention > 1 day:
+#   FreeTierRestrictionError: The specified backup retention period exceeds the maximum
+#   available to free tier customers.
+# While true: backups are capped at 1 day and storage autoscaling is off (matches settings AWS
+# accepted on this plan). Security settings (encryption, private subnets, forced SSL, deletion
+# protection) are NOT affected.
+# AFTER UPGRADING TO A PAID PLAN: set this to false and run plan/apply. Both settings change
+# in place on the existing instance - no rebuild, no data loss.
+variable "free_plan_mode" {
+  description = "true while the AWS account is on the Free plan (1-day RDS backups, no storage autoscaling). Set false after upgrading."
+  type        = bool
+  default     = true
 }
 
 # ==============================================================================
