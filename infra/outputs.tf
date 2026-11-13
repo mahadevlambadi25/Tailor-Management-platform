@@ -28,7 +28,7 @@ output "secrets_manager_arn" {
 }
 
 output "secrets_manager_name" {
-  description = "Name of the AWS Secrets Manager secret to populate with live Supabase credentials."
+  description = "Name of the Secrets Manager secret holding JWT signing secrets and optional third-party keys (managed by OpenTofu)."
   value       = aws_secretsmanager_secret.app_secrets.name
 }
 

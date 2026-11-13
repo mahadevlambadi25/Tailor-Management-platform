@@ -31,6 +31,11 @@ import conversionRoutes from './modules/conversion/conversionRoutes';
 
 export const app = express();
 
+// Reverse proxy awareness (must be set before any middleware that reads req.ip / req.protocol).
+// TRUST_PROXY = number of proxy hops in front of the app: CloudFront -> ALB = 2, ALB only = 1.
+// Unset keeps Express' default (trust nothing), so req.ip is the direct peer.
+app.set('trust proxy', config.trustProxy);
+
 // Global Middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 

@@ -178,11 +178,11 @@ resource "aws_iam_role" "github_actions" {
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
+          # Exact match only: this repository, this branch. No wildcards, so pull requests,
+          # other branches, tags and other repositories cannot assume the deploy role.
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}"
           }
         }
       }

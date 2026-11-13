@@ -105,7 +105,31 @@ resource "aws_s3_bucket_policy" "frontend" {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Amazon CloudFront CDN Distribution
+# 4. CloudFront Function: React Router SPA fallback (S3 behavior only)
+# ------------------------------------------------------------------------------
+# Rewrites client-side routes (no file extension in the last path segment, e.g. /orders/123)
+# to /index.html. Real files (/assets/app.js, /sw.js, /manifest.json) pass through unchanged,
+# and a missing asset still returns its real error instead of HTML. Not attached to /api/*.
+
+resource "aws_cloudfront_function" "spa_router" {
+  name    = "${var.project_name}-${var.environment}-spa-router"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite SPA client-side routes to /index.html"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var lastSegment = request.uri.substring(request.uri.lastIndexOf('/') + 1);
+      if (lastSegment.indexOf('.') === -1) {
+        request.uri = '/index.html';
+      }
+      return request;
+    }
+  EOT
+}
+
+# ------------------------------------------------------------------------------
+# 5. Amazon CloudFront CDN Distribution
 # ------------------------------------------------------------------------------
 
 resource "aws_cloudfront_distribution" "frontend" {
@@ -151,6 +175,12 @@ resource "aws_cloudfront_distribution" "frontend" {
 
     # AWS Managed CachingOptimized policy ID
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+
+    # SPA routing on the S3 behavior only (see aws_cloudfront_function.spa_router)
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_router.arn
+    }
   }
 
   # Ordered Cache Behavior: Proxies /api/* requests to ALB without CORS restrictions
@@ -172,20 +202,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  # React Router SPA PushState Navigation Fallback (403/404 -> /index.html)
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
+  # No distribution-wide custom_error_response: it would also rewrite /api/* 403/404 responses
+  # from the backend into index.html with HTTP 200. SPA fallback is handled by spa_router instead.
 
   # SSL / HTTPS Configuration
   viewer_certificate {

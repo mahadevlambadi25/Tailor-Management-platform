@@ -12,14 +12,16 @@ terraform {
     }
   }
 
-  # Uncomment and configure for remote state management in S3 + DynamoDB
-  # backend "s3" {
-  #   bucket         = "tailor-management-tofu-state-ap-south-1"
-  #   key            = "production/terraform.tfstate"
-  #   region         = "ap-south-1"
-  #   dynamodb_table = "tailor-management-tofu-locks"
-  #   encrypt        = true
-  # }
+  # Remote state: private, versioned, AES-256 encrypted bucket (HTTPS-only policy).
+  # State contains generated secrets (RDS password, JWT secrets) - never use local state.
+  # use_lockfile = S3-native state locking (OpenTofu >= 1.10), no DynamoDB table needed.
+  backend "s3" {
+    bucket       = "tailor-management-tofu-state-885072868605"
+    key          = "production/terraform.tfstate"
+    region       = "ap-south-1"
+    encrypt      = true
+    use_lockfile = true
+  }
 }
 
 provider "aws" {

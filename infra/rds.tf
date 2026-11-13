@@ -59,8 +59,9 @@ resource "aws_db_parameter_group" "postgres16" {
   description = "Custom parameter group for Tailor Management RDS PostgreSQL 16"
 
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot" # how AWS stores this parameter; avoids a perpetual plan diff
   }
 
   parameter {
@@ -88,13 +89,16 @@ resource "aws_db_instance" "postgres" {
   identifier = "${var.project_name}-${var.environment}-postgres"
 
   # Engine Specification (Compatible with Prisma v5.22.0)
+  # Major version only: AWS picks the current default 16.x minor in ap-south-1 (16.3 is retired there)
+  # and auto_minor_version_upgrade can move it forward without causing plan drift.
   engine         = "postgres"
-  engine_version = "16.3"
+  engine_version = "16"
 
   # Sizing & Storage
   instance_class        = var.db_instance_class
   allocated_storage     = var.db_allocated_storage
-  max_allocated_storage = var.db_max_allocated_storage # Storage autoscaling up to 100 GB
+  # Storage autoscaling up to db_max_allocated_storage (off while free_plan_mode = true)
+  max_allocated_storage = var.free_plan_mode ? null : var.db_max_allocated_storage
   storage_type          = "gp3"
   storage_encrypted     = true
 
@@ -112,7 +116,7 @@ resource "aws_db_instance" "postgres" {
 
   # Reliability, Backups & Maintenance
   multi_az              = var.db_multi_az
-  backup_retention_period = var.db_backup_retention_period
+  backup_retention_period = var.free_plan_mode ? min(var.db_backup_retention_period, 1) : var.db_backup_retention_period
   backup_window         = "02:00-03:00" # UTC
   maintenance_window    = "Mon:03:00-Mon:04:00" # UTC
   copy_tags_to_snapshot = true
@@ -130,7 +134,10 @@ resource "aws_db_instance" "postgres" {
   lifecycle {
     ignore_changes = [
       password,
-      latest_restorable_time
+      # AWS owns the minor version (auto_minor_version_upgrade). Without this, the stored actual
+      # version (e.g. 16.13) differs from "16" and OpenTofu would request a modify/downgrade.
+      # For a deliberate MAJOR upgrade, remove this line temporarily and change engine_version.
+      engine_version
     ]
   }
 
@@ -143,7 +150,7 @@ resource "aws_db_instance" "postgres" {
 resource "aws_secretsmanager_secret" "rds_credentials" {
   name                    = "${var.project_name}/${var.environment}/rds-credentials"
   description             = "Master credentials and connection strings for ${var.project_name} RDS PostgreSQL"
-  recovery_window_in_days = 0
+  recovery_window_in_days = var.secrets_recovery_window_in_days
 
   tags = {
     Name = "${var.project_name}-${var.environment}-rds-credentials"

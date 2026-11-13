@@ -18,9 +18,10 @@ export class WebhookController {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    const expectedToken = (config as any).whatsappVerifyToken || process.env.WHATSAPP_VERIFY_TOKEN || 'tailor_whatsapp_verify_token_default';
+    // Empty in production when WHATSAPP_VERIFY_TOKEN is unset -> verification always fails (fail closed)
+    const expectedToken = config.whatsappVerifyToken;
 
-    if (mode === 'subscribe' && token === expectedToken) {
+    if (expectedToken && mode === 'subscribe' && token === expectedToken) {
       logger.info('[WebhookController] Meta webhook subscription challenge verified successfully.');
       return res.status(200).send(challenge);
     }
@@ -36,12 +37,13 @@ export class WebhookController {
   static async handleWebhook(req: Request, res: Response, next: NextFunction) {
     try {
       const signature = req.headers['x-hub-signature-256'] as string;
-      const secret = (config as any).whatsappAppSecret || process.env.WHATSAPP_APP_SECRET || 'tailor_whatsapp_app_secret_placeholder';
+      // Empty in production when WHATSAPP_APP_SECRET is unset -> every payload is rejected (fail closed)
+      const secret = config.whatsappAppSecret;
 
       // 1. Raw body verification
       const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body), 'utf8');
 
-      if (!verifyMetaSignature(rawBody, signature, secret)) {
+      if (!secret || !verifyMetaSignature(rawBody, signature, secret)) {
         logger.warn('[WebhookController] Invalid or missing x-hub-signature-256 signature header');
         return res.status(401).json({
           success: false,
