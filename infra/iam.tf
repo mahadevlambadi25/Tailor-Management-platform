@@ -180,9 +180,16 @@ resource "aws_iam_role" "github_actions" {
         Condition = {
           # Exact match only: this repository, this branch. No wildcards, so pull requests,
           # other branches, tags and other repositories cannot assume the deploy role.
+          # Two exact subjects (a list under StringEquals = match either one):
+          #   1. classic:      repo:<owner>/<repo>:ref:refs/heads/<branch>
+          #   2. immutable-ID: repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/<branch>
+          #      (format GitHub sent for this repo from Nov 2026; numeric IDs never change on rename)
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}"
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:${var.github_repository}:ref:refs/heads/${var.github_deploy_branch}",
+              "repo:${split("/", var.github_repository)[0]}@${var.github_owner_id}/${split("/", var.github_repository)[1]}@${var.github_repository_id}:ref:refs/heads/${var.github_deploy_branch}",
+            ]
           }
         }
       }

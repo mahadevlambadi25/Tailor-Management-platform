@@ -234,6 +234,28 @@ variable "github_repository" {
   }
 }
 
+variable "github_owner_id" {
+  description = "Immutable numeric ID of the GitHub account that owns github_repository (used in the immutable-ID OIDC subject)."
+  type        = string
+  default     = "226821451"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_owner_id))
+    error_message = "github_owner_id must be a numeric GitHub account ID."
+  }
+}
+
+variable "github_repository_id" {
+  description = "Immutable numeric ID of github_repository (used in the immutable-ID OIDC subject)."
+  type        = string
+  default     = "1374423262"
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id must be a numeric GitHub repository ID."
+  }
+}
+
 variable "github_deploy_branch" {
   description = "The only branch whose GitHub Actions runs may assume the deploy role (must match the deploy workflow trigger)."
   type        = string
