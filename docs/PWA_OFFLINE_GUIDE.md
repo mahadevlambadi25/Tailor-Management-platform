@@ -37,17 +37,26 @@ The application manifest is registered at `/manifest.json`:
 
 ## 3. Service Worker Caching Strategies
 
-The active service worker (`frontend/public/sw.js`) implements tailored caching policies:
+The active service worker (`frontend/public/sw.js`, cache `tailorpro-static-v3`) is deliberately narrow.
+It only handles **same-origin GET** requests:
 
-### 3.1 App Shell & Static Assets: Stale-While-Revalidate
-- Static JavaScript chunks, CSS stylesheets, SVGs, and web fonts are served directly from the Cache Storage API for instantaneous load times (< 200ms).
-- In the background, the Service Worker checks for updated hashes and populates the cache for subsequent visits.
+| Request | Strategy |
+|---|---|
+| Page navigations (`/`, `/login`, `/orders/123`, ...) | Network-first; offline fallback to the cached `index.html` app shell |
+| Hashed build files (`/assets/*`) | Cache-first (file names change on every build, so cached copies never go stale) |
+| `manifest.json`, `favicon.ico`, `pwa-*.png` | Network-first; cached copy when offline |
 
-### 3.2 API Requests: Network-First with Offline Cache Fallback
-- For requests targeting `/api/v1/customers`, `/api/v1/orders`, and `/api/v1/measurements`:
-  1. The worker first attempts a direct network fetch.
-  2. If network succeeds, it writes a clone of the response into `tailor-api-cache-v1`.
-  3. If network fails (e.g. offline workshop scenario), it serves the cached response, preventing blank screens or crash states.
+### 3.1 Never intercepted (always go straight to the network)
+- **All non-GET requests** (registration, login, payments, any create/update/delete).
+- **All backend API calls** (`/api/*`). API responses are never cached by the service worker;
+  offline read resilience comes from `OfflineSyncContext` (client-side stores), not from Cache Storage.
+- **Cross-origin requests** (Google Fonts, Razorpay checkout, third-party scripts).
+
+### 3.2 Updates
+- `main.tsx` registers the worker with `updateViaCache: 'none'`, and `sw.js` is deployed with
+  `Cache-Control: no-cache`, so every visit checks for a new worker.
+- A new worker calls `skipWaiting()` + `clients.claim()` and deletes all older `tailorpro-*` caches
+  on activation. Bump `CACHE_VERSION` in `sw.js` whenever its caching behaviour changes.
 
 ---
 
